@@ -52,7 +52,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/yava_icon_app.png"
-  adaptive_icon_background: "#ffffff"   # color de fondo (puedes poner transparente o el color de tu marca)
+  adaptive_icon_background: "#ffffff"
   adaptive_icon_foreground: "assets/images/yava_icon_app.png"
 
 flutter:
