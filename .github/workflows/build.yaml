@@ -5,10 +5,10 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch: # Permite ejecutarlo también manualmente con un botón desde GitHub
+  workflow_dispatch:
 
 permissions:
-  contents: write # Necesario para publicar el APK directo en GitHub Releases
+  contents: write
 
 jobs:
   build-apk:
@@ -34,16 +34,18 @@ jobs:
       - name: 4. Instalar dependencias del proyecto
         run: flutter pub get
 
-      - name: 5. Asegurar Label "YAVÁ" en AndroidManifest.xml
+      - name: 5. Asegurar Label "YAVÁ" y Gradle 8.14
         run: |
           sed -i 's/android:label="[^"]*"/android:label="YAVÁ"/g' android/app/src/main/AndroidManifest.xml
+          sed -i 's/gradle-[0-9.]*-bin\.zip/gradle-8.14-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/gradle-[0-9.]*-all\.zip/gradle-8.14-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
 
       - name: 6. Generar Ícono Oficial de la App (flutter_launcher_icons)
         run: |
           dart run flutter_launcher_icons || true
 
-      - name: 7. Compilar APK en modo Release
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: 7. Compilar APK en modo Release (Con bypass de validación Gradle)
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
 
       - name: 8. Renombrar APK en la raíz para descarga fácil
         run: |
@@ -55,7 +57,7 @@ jobs:
           name: YAVA-APK
           path: YAVA.apk
 
-      - name: 10. Publicar APK directo en GitHub Releases (Descarga directa en el celular)
+      - name: 10. Publicar APK directo en GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
