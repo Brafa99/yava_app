@@ -1,35 +1,44 @@
-import 'dart:typed_data';
-
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'firebase_bootstrap.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  final FirebaseBootstrapResult bootstrap;
+  static const _tokenKey = 'auth_token';
+  static const _userIdKey = 'user_id';
+  static const _userRoleKey = 'user_role';
 
-  StorageService(this.bootstrap);
-
-  FirebaseStorage? get storage {
-    if (!bootstrap.isConfigured) return null;
-    return FirebaseStorage.instance;
+  Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
   }
 
-  Future<String?> uploadBytes({
-    required String path,
-    required Uint8List bytes,
-    required String contentType,
-  }) async {
-    final reference = storage?.ref(path);
-    if (reference == null) return null;
-    final snapshot = await reference.putData(
-      bytes,
-      SettableMetadata(contentType: contentType),
-    );
-    return snapshot.ref.fullPath;
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
+  }
+
+  Future<void> saveUserId(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_userIdKey, id);
+  }
+
+  Future<int?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_userIdKey);
+  }
+
+  Future<void> saveUserRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userRoleKey, role);
+  }
+
+  Future<String?> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userRoleKey);
+  }
+
+  Future<void> clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userIdKey);
+    await prefs.remove(_userRoleKey);
   }
 }
-
-final storageServiceProvider = Provider<StorageService>(
-  (ref) => StorageService(ref.watch(firebaseBootstrapProvider)),
-);

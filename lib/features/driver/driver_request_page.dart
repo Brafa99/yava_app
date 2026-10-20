@@ -1,21 +1,46 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:yava_delivery_driver/app/theme/app_colors.dart';
+import 'package:yava_delivery_driver/features/driver/home/driver_home_page.dart';
+import 'package:yava_delivery_driver/features/transport/models/ride_requests_model.dart';
 
-class DriverRequestsPage extends StatelessWidget {
+class DriverRequestsPage extends ConsumerStatefulWidget {
   const DriverRequestsPage({super.key});
 
   static const routePath = '/driver/requests';
 
   @override
+  ConsumerState<DriverRequestsPage> createState() => _DriverRequestsPageState();
+}
+
+class _DriverRequestsPageState extends ConsumerState<DriverRequestsPage> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Actualización periódica de solicitudes disponibles
+    _timer = Timer.periodic(const Duration(seconds: 6), (_) {
+      ref.invalidate(availableRidesProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final ridesAsync = ref.watch(availableRidesProvider);
+
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-
         if (context.canPop()) {
           context.pop();
         } else {
@@ -42,46 +67,41 @@ class DriverRequestsPage extends StatelessWidget {
             'Solicitudes cercanas',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => ref.invalidate(availableRidesProvider),
+            ),
+          ],
         ),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('transport_requests')
-              .where('status', isEqualTo: 'searching')
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return _ErrorState(
-                message:
-                    'No pudimos cargar las solicitudes.\n\n'
-                    '${snapshot.error}',
-              );
-            }
-
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.navy),
-              );
-            }
-
-            final documents = snapshot.data?.docs ?? [];
-
-            if (documents.isEmpty) {
+        body: ridesAsync.when(
+          data: (rides) {
+            if (rides.isEmpty) {
               return const _EmptyRequests();
             }
 
-            return ListView.separated(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-              itemCount: documents.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 14),
-              itemBuilder: (context, index) {
-                final doc = documents[index];
-
-                return _RequestCard(requestId: doc.id, data: doc.data());
-              },
+            return RefreshIndicator(
+              color: AppColors.navy,
+              onRefresh: () async => ref.invalidate(availableRidesProvider),
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                itemCount: rides.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
+                itemBuilder: (context, index) {
+                  final ride = rides[index];
+                  return _RequestCard(ride: ride);
+                },
+              ),
             );
           },
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.navy),
+          ),
+          error: (err, _) => _ErrorState(
+            message: 'No pudimos cargar las solicitudes.\n\n$err',
+            onRetry: () => ref.invalidate(availableRidesProvider),
+          ),
         ),
       ),
     );
@@ -89,24 +109,19 @@ class DriverRequestsPage extends StatelessWidget {
 }
 
 class _RequestCard extends StatelessWidget {
-  const _RequestCard({required this.requestId, required this.data});
+  final RideRequestModel ride;
 
-  final String requestId;
-  final Map<String, dynamic> data;
+  const _RequestCard({required this.ride});
 
   @override
   Widget build(BuildContext context) {
-    final serviceType = data['serviceType'] as String? ?? 'taxi';
-
-    final serviceName = _serviceName(serviceType);
-
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: () {
-          context.push('/driver/requests/$requestId', extra: data);
+          context.push('/driver/requests/${ride.id}');
         },
         child: Container(
           padding: const EdgeInsets.all(18),
@@ -126,26 +141,32 @@ class _RequestCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _ServiceIcon(serviceType: serviceType),
-
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppColors.mist,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.directions_car_rounded, color: AppColors.navy, size: 26),
+                  ),
                   const SizedBox(width: 14),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          serviceName,
+                          'Viaje #${ride.id}',
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.w900,
                             color: AppColors.ink,
                           ),
                         ),
                         const SizedBox(height: 3),
-                        const Text(
-                          'Solicitud disponible',
-                          style: TextStyle(
+                        Text(
+                          '${ride.distanceKm ?? 3.5} km • ${ride.estimatedTimeMinutes ?? 10} min aprox.',
+                          style: const TextStyle(
                             color: AppColors.mutedInk,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -154,79 +175,46 @@ class _RequestCard extends StatelessWidget {
                       ],
                     ),
                   ),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.mist,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppColors.success,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Activa',
-                          style: TextStyle(
-                            color: AppColors.navy,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    'Bs ${ride.offeredFare.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: AppColors.navy,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 19),
-
+              const SizedBox(height: 18),
               _InfoRow(
                 icon: Icons.my_location_rounded,
                 iconColor: AppColors.navyLight,
-                text: 'Recogida en ubicación indicada',
+                text: ride.originAddress ?? 'Origen no especificado',
               ),
-
-              const SizedBox(height: 11),
-
+              const SizedBox(height: 10),
               _InfoRow(
                 icon: Icons.location_on_rounded,
                 iconColor: AppColors.clay,
-                text: 'Destino indicado por cliente',
+                text: ride.destinationAddress ?? 'Destino no especificado',
               ),
-
               const SizedBox(height: 18),
-
               SizedBox(
                 width: double.infinity,
-                height: 49,
+                height: 48,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    context.push('/driver/requests/$requestId', extra: data);
+                    context.push('/driver/requests/${ride.id}');
                   },
                   icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                   label: const Text(
-                    'Ver solicitud',
+                    'Ver solicitud y ofertar',
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.navy,
                     foregroundColor: AppColors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   ),
                 ),
               ),
@@ -236,111 +224,35 @@ class _RequestCard extends StatelessWidget {
       ),
     );
   }
-
-  static String _serviceName(String value) {
-    switch (value) {
-      case 'mototaxi':
-        return 'Mototaxi';
-      case 'camion':
-        return 'Camión';
-      case 'delivery':
-        return 'Delivery';
-      case 'viaje':
-        return 'Viaje';
-      case 'taxi':
-      default:
-        return 'Taxi';
-    }
-  }
-}
-
-class _ServiceIcon extends StatelessWidget {
-  const _ServiceIcon({required this.serviceType});
-
-  final String serviceType;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = _iconForService(serviceType);
-    final accent = _accentForService(serviceType);
-
-    return Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        color: accent.withOpacity(0.11),
-        borderRadius: BorderRadius.circular(17),
-      ),
-      child: Icon(icon, color: accent, size: 27),
-    );
-  }
-
-  IconData _iconForService(String value) {
-    switch (value) {
-      case 'mototaxi':
-        return Icons.two_wheeler_rounded;
-      case 'camion':
-        return Icons.local_shipping_rounded;
-      case 'delivery':
-        return Icons.inventory_2_outlined;
-      case 'viaje':
-        return Icons.route_rounded;
-      case 'taxi':
-      default:
-        return Icons.local_taxi_rounded;
-    }
-  }
-
-  Color _accentForService(String value) {
-    switch (value) {
-      case 'mototaxi':
-        return AppColors.navyLight;
-      case 'camion':
-        return AppColors.clay;
-      case 'delivery':
-        return AppColors.success;
-      case 'viaje':
-        return AppColors.sunrise;
-      case 'taxi':
-      default:
-        return AppColors.navyLight;
-    }
-  }
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.iconColor,
-    required this.text,
-  });
-
   final IconData icon;
   final Color iconColor;
   final String text;
+
+  const _InfoRow({required this.icon, required this.iconColor, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 31,
-          height: 31,
+          width: 30,
+          height: 30,
           decoration: BoxDecoration(
             color: iconColor.withOpacity(0.09),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 17, color: iconColor),
+          child: Icon(icon, size: 16, color: iconColor),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: AppColors.mutedInk,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppColors.ink, fontSize: 12.5, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -360,72 +272,24 @@ class _EmptyRequests extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 92,
-              height: 92,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: AppColors.mist,
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
-                Icons.local_shipping_outlined,
-                size: 43,
-                color: AppColors.navyLight,
-              ),
+              child: const Icon(Icons.search_off_rounded, size: 40, color: AppColors.navyLight),
             ),
-
-            const SizedBox(height: 21),
-
+            const SizedBox(height: 18),
             const Text(
               'No hay solicitudes cercanas',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-                color: AppColors.ink,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.ink),
             ),
-
-            const SizedBox(height: 8),
-
+            const SizedBox(height: 6),
             const Text(
-              'Cuando un cliente solicite un servicio, '
-              'aparecerá aquí.',
+              'Las solicitudes de clientes aparecerán automáticamente aquí.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.mutedInk,
-                height: 1.5,
-                fontSize: 13,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.mist),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.refresh_rounded,
-                    size: 16,
-                    color: AppColors.navyLight,
-                  ),
-                  SizedBox(width: 7),
-                  Text(
-                    'Actualización automática',
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+              style: TextStyle(color: AppColors.mutedInk, fontSize: 13),
             ),
           ],
         ),
@@ -435,9 +299,10 @@ class _EmptyRequests extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message});
-
   final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -447,42 +312,14 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.10),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                color: AppColors.error,
-                size: 34,
-              ),
-            ),
-
-            const SizedBox(height: 17),
-
-            const Text(
-              'No pudimos cargar las solicitudes',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.ink,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-
-            const SizedBox(height: 9),
-
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.mutedInk,
-                height: 1.45,
-                fontSize: 12,
-              ),
+            const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 44),
+            const SizedBox(height: 14),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.mutedInk, fontSize: 12)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: Colors.white),
+              child: const Text('Reintentar'),
             ),
           ],
         ),

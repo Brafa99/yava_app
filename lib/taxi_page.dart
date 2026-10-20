@@ -69,7 +69,7 @@ class _TaxiPageState extends State<TaxiPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
-                'assets/icons/taxi.png',
+                'assets/images/taxi.png',
                 width: 24,
                 height: 24,
                 fit: BoxFit.contain,
@@ -89,7 +89,7 @@ class _TaxiPageState extends State<TaxiPage> {
           const Spacer(),
 
           Image.asset(
-            'assets/icons/taxi.png',
+            'assets/images/taxi.png',
             width: 31,
             height: 31,
             fit: BoxFit.contain,

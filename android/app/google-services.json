@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "711659145200",
-    "project_id": "yava-app-global",
-    "storage_bucket": "yava-app-global.firebasestorage.app"
+    "project_number": "322500802814",
+    "project_id": "yava-app-bo",
+    "storage_bucket": "yava-app-bo.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:711659145200:android:6ade88359f5f15ed75ff35",
+        "mobilesdk_app_id": "1:322500802814:android:f58d5eb846de0e28d58daf",
         "android_client_info": {
-          "package_name": "com.example.yava_delivery_driver"
+          "package_name": "app.yavabolivia.com"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDuxp4I5hQitmsYqKz5FrZTPBsvhgMN_hU"
+          "current_key": "AIzaSyDhOMmGO3leslnYx6iYsZcWtwbCNHcdMk4"
         }
       ],
       "services": {

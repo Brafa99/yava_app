@@ -1,69 +1,85 @@
-enum UserRole {
-  customer,
-  driver,
-}
-
-extension UserRoleExtension on UserRole {
-  String get value {
-    switch (this) {
-      case UserRole.customer:
-        return 'customer';
-
-      case UserRole.driver:
-        return 'driver';
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case UserRole.customer:
-        return 'Ganadero o Cliente';
-
-      case UserRole.driver:
-        return 'Transportista o Conductor';
-    }
-  }
-
-  static UserRole fromValue(String? value) {
-    switch (value) {
-      case 'driver':
-        return UserRole.driver;
-
-      case 'customer':
-      default:
-        return UserRole.customer;
-    }
-  }
-}
-
 class AppUser {
-  const AppUser({
-    required this.uid,
+  final int id;
+  final String name;
+  final String? lastName;
+  final String email;
+  final String role; // 'client' | 'driver' | 'admin'
+  final String? ci;
+  final String? birthDate;
+  final String? phone;
+  final String? address;
+  final String? photo;
+  final String? city;
+  final String status; // 'BORRADOR','EN_REVISION','OBSERVADO','APROBADO','HABILITADO', etc.
+  final bool isEnabled;
+  final bool isOnline;
+  final bool isOnRide;
+  final String? deviceToken;
+  final double? lastLatitude;
+  final double? lastLongitude;
+
+  AppUser({
+    required this.id,
+    required this.name,
+    this.lastName,
     required this.email,
-    required this.displayName,
     required this.role,
-    this.photoUrl,
+    this.ci,
+    this.birthDate,
+    this.phone,
+    this.address,
+    this.photo,
+    this.city,
+    required this.status,
+    required this.isEnabled,
+    required this.isOnline,
+    required this.isOnRide,
+    this.deviceToken,
+    this.lastLatitude,
+    this.lastLongitude,
   });
 
-  final String uid;
-  final String email;
-  final String displayName;
-  final UserRole role;
-  final String? photoUrl;
-
-  AppUser copyWith({
-    String? uid,
-    String? email,
-    String? displayName,
-    UserRole? role,
-    String? photoUrl,
-  }) {
+  factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
-      uid: uid ?? this.uid,
-      email: email ?? this.email,
-      displayName: displayName ?? this.displayName,
-      role: role ?? this.role,
-      photoUrl: photoUrl ?? this.photoUrl,
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      name: json['name'] ?? '',
+      lastName: json['last_name'],
+      email: json['email'] ?? '',
+      role: json['role'] ?? 'client',
+      ci: json['ci'],
+      birthDate: json['birth_date'],
+      phone: json['phone'],
+      address: json['address'],
+      photo: json['photo'],
+      city: json['city'],
+      status: json['status'] ?? 'BORRADOR',
+      isEnabled: json['is_enabled'] == 1 || json['is_enabled'] == true,
+      isOnline: json['is_online'] == 1 || json['is_online'] == true,
+      isOnRide: json['is_on_ride'] == 1 || json['is_on_ride'] == true,
+      deviceToken: json['device_token'],
+      lastLatitude: json['last_latitude'] != null ? double.tryParse(json['last_latitude'].toString()) : null,
+      lastLongitude: json['last_longitude'] != null ? double.tryParse(json['last_longitude'].toString()) : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'last_name': lastName,
+    'email': email,
+    'role': role,
+    'ci': ci,
+    'birth_date': birthDate,
+    'phone': phone,
+    'address': address,
+    'photo': photo,
+    'city': city,
+    'status': status,
+    'is_enabled': isEnabled ? 1 : 0,
+    'is_online': isOnline ? 1 : 0,
+    'is_on_ride': isOnRide ? 1 : 0,
+    'device_token': deviceToken,
+    'last_latitude': lastLatitude,
+    'last_longitude': lastLongitude,
+  };
 }

@@ -82,7 +82,7 @@ class RoleSelectionPage extends StatelessWidget {
           ),
           Expanded(
             child: Image.asset(
-              'assets/logo_yava_bg.png',
+              'assets/images/logo_yava_bg.png',
               height: 40,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) {

@@ -16,51 +16,51 @@ class _HomePageState extends State<HomePage>
   final List<ServiceItem> services = const [
     ServiceItem(
       title: 'Taxi',
-      icon: 'assets/icons/taxi.png',
+      icon: 'assets/images/taxi.png',
     ),
     ServiceItem(
       title: 'Taxi Moto',
-      icon: 'assets/icons/taxi_moto.png',
+      icon: 'assets/images/taxi_moto.png',
     ),
     ServiceItem(
       title: 'Delivery',
-      icon: 'assets/icons/bag.png',
+      icon: 'assets/images/bag.png',
     ),
     ServiceItem(
       title: 'Moto Express',
-      icon: 'assets/icons/moto_express.png',
+      icon: 'assets/images/moto_express.png',
     ),
     ServiceItem(
       title: 'Trufi',
-      icon: 'assets/icons/trufi.png',
+      icon: 'assets/images/trufi.png',
     ),
     ServiceItem(
       title: 'Viajes Interprov.',
-      icon: 'assets/icons/viajes_interprov.png',
+      icon: 'assets/images/viajes_interprov.png',
     ),
     ServiceItem(
       title: 'Carga',
-      icon: 'assets/icons/camion_carga.webp',
+      icon: 'assets/images/camion_carga.webp',
     ),
     ServiceItem(
       title: 'Ganadero',
-      icon: 'assets/icons/camion_ganadero.png',
+      icon: 'assets/images/camion_ganadero.png',
     ),
     ServiceItem(
       title: 'Auxilio',
-      icon: 'assets/icons/emergency.png',
+      icon: 'assets/images/emergency.png',
     ),
     ServiceItem(
       title: 'Remolque',
-      icon: 'assets/icons/remolque.jpg',
+      icon: 'assets/images/remolque.jpg',
     ),
     ServiceItem(
       title: 'Encomiendas',
-      icon: 'assets/icons/encomiendas.png',
+      icon: 'assets/images/encomiendas.png',
     ),
     ServiceItem(
       title: 'Más servicios',
-      icon: 'assets/icons/puntos_azules.png',
+      icon: 'assets/images/puntos_azules.png',
     ),
   ];
 

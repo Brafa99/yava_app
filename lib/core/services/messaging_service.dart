@@ -1,27 +1,72 @@
+import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'firebase_bootstrap.dart';
+import '../network/api_client.dart';
+import '../network/api_endpoints.dart';
+import 'storage_service.dart';
 
 class MessagingService {
-  final FirebaseBootstrapResult bootstrap;
+  final ApiClient apiClient;
+  final StorageService storageService;
+  FirebaseMessaging? _fcm;
 
-  MessagingService(this.bootstrap);
-
-  FirebaseMessaging? get messaging {
-    if (!bootstrap.isConfigured) return null;
-    return FirebaseMessaging.instance;
+  MessagingService({
+    required this.apiClient,
+    required this.storageService,
+  }) {
+    // En Web evitamos llamar a instance si no está configurado el service worker
+    if (!kIsWeb) {
+      try {
+        _fcm = FirebaseMessaging.instance;
+      } catch (e) {
+        log('FirebaseMessaging no disponible: $e');
+      }
+    }
   }
 
-  Future<String?> requestToken() async {
-    final instance = messaging;
-    if (instance == null) return null;
-    await instance.requestPermission();
-    return instance.getToken();
+  Future<void> initialize() async {
+    if (kIsWeb || _fcm == null) {
+      log('FCM ignorado en entorno Web');
+      return;
+    }
+
+    try {
+      NotificationSettings settings = await _fcm!.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        log('FCM: Permisos concedidos');
+      }
+
+      _fcm!.onTokenRefresh.listen((newToken) {
+        syncTokenWithBackend(newToken);
+      });
+    } catch (e) {
+      log('FCM init error: $e');
+    }
+  }
+
+  Future<void> syncTokenWithBackend([String? token]) async {
+    if (kIsWeb || _fcm == null) return;
+
+    try {
+      final userToken = await storageService.getToken();
+      if (userToken == null || userToken.isEmpty) return;
+
+      final fcmToken = token ?? await _fcm?.getToken();
+      if (fcmToken != null) {
+        await apiClient.post(
+          ApiEndpoints.updateToken,
+          body: {'device_token': fcmToken},
+          requiresAuth: true,
+        );
+        log('FCM Token sincronizado con Laravel: $fcmToken');
+      }
+    } catch (e) {
+      log('FCM sync error: $e');
+    }
   }
 }
-
-
-final messagingServiceProvider = Provider<MessagingService>(
-  (ref) => MessagingService(ref.watch(firebaseBootstrapProvider)),
-);

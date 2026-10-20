@@ -1,419 +1,230 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yava_delivery_driver/features/auth/application/auth_controller.dart';
+import 'package:yava_delivery_driver/features/driver/home/driver_home_page.dart';
+import 'package:yava_delivery_driver/features/driver/widgets/drive_active_trip_panel.dart';
+import 'package:yava_delivery_driver/features/driver/widgets/driver_complete_modal.dart';
+import '../../app/theme/app_colors.dart';
+import '../../core/network/api_endpoints.dart';
 
-import 'package:yava_delivery_driver/app/theme/app_colors.dart';
+class DriverTrackingPage extends ConsumerStatefulWidget {
+  const DriverTrackingPage({super.key, this.rideId = '1'});
 
-class DriverTrackingPage extends StatelessWidget {
-  const DriverTrackingPage({super.key});
-
+  final String rideId;
   static const routePath = '/driver/tracking';
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+  ConsumerState<DriverTrackingPage> createState() => _DriverTrackingPageState();
+}
 
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/driver/home');
-        }
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.sand,
-        appBar: AppBar(
-          backgroundColor: AppColors.navy,
-          foregroundColor: AppColors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/driver/home');
-              }
-            },
-          ),
-          title: const Text(
-            'Seguimiento',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19),
-          ),
+class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
+  GoogleMapController? _mapController;
+  
+  // Estados oficiales de la BD MySQL: ACEPTADO -> EN_ORIGEN -> EN_CURSO -> FINALIZADO[cite: 1, 60]
+  String _currentStatus = 'ACEPTADO';
+  bool _updating = false;
+
+  // Datos de ejemplo o en vivo del viaje
+  double _totalFare = 18.00;
+  double _driverNet = 14.40;
+  double _commission = 3.60;
+
+  // Ubicación base en Concepción, Santa Cruz
+  static const LatLng _concepcionCenter = LatLng(-16.1311, -62.0298);
+
+  // Estilo Dark Map para lograr el efecto futurista de los mockups[cite: 61]
+  static const String _darkMapStyle = '''
+  [
+    {"elementType": "geometry", "stylers": [{"color": "#081528"}]},
+    {"elementType": "labels.text.fill", "stylers": [{"color": "#8ec3b9"}]},
+    {"elementType": "labels.text.stroke", "stylers": [{"color": "#1a3646"}]},
+    {"featureType": "road", "elementType": "geometry", "stylers": [{"color": "#0f2c4a"}]},
+    {"featureType": "road", "elementType": "geometry.stroke", "stylers": [{"color": "#1f5682"}]},
+    {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#020d1a"}]}
+  ]
+  ''';
+
+  Future<void> _updateStatus(String newStatus) async {
+    setState(() => _updating = true);
+    try {
+      final ds = ref.read(transportRemoteDataSourceProvider);
+      final id = int.tryParse(widget.rideId) ?? 1;
+
+      // PATCH /api/ride-requests/{id}/status
+      await ds.updateRideStatus(id, newStatus);
+
+      if (!mounted) return;
+      setState(() {
+        _currentStatus = newStatus;
+        _updating = false;
+      });
+
+      if (newStatus == 'FINALIZADO') {
+        // Al finalizar, mostramos el modal de calificaciones (Mockup 6)[cite: 97]
+        _showCompletedModal();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar estado: $e'),
+          backgroundColor: Colors.redAccent,
         ),
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: Container(
-                color: AppColors.mist,
-                child: CustomPaint(painter: _MapDemoPainter()),
-              ),
-            ),
-
-            Positioned(top: 18, left: 18, right: 18, child: _StatusCard()),
-
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 18,
-              child: _TrackingBottomCard(
-                onOpenTrip: () {
-                  context.go('/driver/trips');
-                },
-              ),
-            ),
-
-            Positioned(
-              right: 18,
-              top: 110,
-              child: FloatingActionButton.small(
-                heroTag: 'driver_location',
-                backgroundColor: AppColors.white,
-                foregroundColor: AppColors.navy,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'La ubicación se sincronizará con el viaje activo.',
-                      ),
-                    ),
-                  );
-                },
-                child: const Icon(Icons.my_location_rounded),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusCard extends StatelessWidget {
-  const _StatusCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withOpacity(0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: const Row(
-        children: [
-          CircleAvatar(
-            radius: 21,
-            backgroundColor: AppColors.mist,
-            child: Icon(Icons.navigation_rounded, color: AppColors.navy),
-          ),
-          SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Viaje en curso',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Ubicación compartida en tiempo real',
-                  style: TextStyle(
-                    color: AppColors.mutedInk,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.circle, color: AppColors.success, size: 11),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrackingBottomCard extends StatelessWidget {
-  const _TrackingBottomCard({required this.onOpenTrip});
-
-  final VoidCallback onOpenTrip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(19),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(23),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withOpacity(0.10),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.mist,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.local_taxi_rounded,
-                  color: AppColors.navy,
-                ),
-              ),
-              const SizedBox(width: 11),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Taxi · Servicio activo',
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Cliente: María R.',
-                      style: TextStyle(
-                        color: AppColors.mutedInk,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Text(
-                'Bs 28',
-                style: TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 17),
-          _RouteLine(
-            title: 'Plaza Principal',
-            subtitle: 'Origen',
-            icon: Icons.radio_button_checked_rounded,
-            color: AppColors.navyLight,
-          ),
-          _RouteLine(
-            title: 'Barrio San Antonio',
-            subtitle: 'Destino',
-            icon: Icons.location_on_rounded,
-            color: AppColors.clay,
-            showLine: false,
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: onOpenTrip,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navy,
-                foregroundColor: AppColors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              icon: const Icon(Icons.route_rounded),
-              label: const Text(
-                'Ver viaje',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RouteLine extends StatelessWidget {
-  const _RouteLine({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    this.showLine = true,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final bool showLine;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 25,
-            child: Column(
-              children: [
-                Icon(icon, color: color, size: 15),
-                if (showLine)
-                  Expanded(child: Container(width: 1, color: AppColors.mist)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.mutedInk,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MapDemoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = AppColors.white
-      ..strokeWidth = 20
-      ..style = PaintingStyle.stroke;
-
-    final roadPaintSmall = Paint()
-      ..color = AppColors.white.withOpacity(0.75)
-      ..strokeWidth = 10
-      ..style = PaintingStyle.stroke;
-
-    final routePaint = Paint()
-      ..color = AppColors.navyLight
-      ..strokeWidth = 7
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final routePath = Path()
-      ..moveTo(size.width * 0.18, size.height * 0.72)
-      ..quadraticBezierTo(
-        size.width * 0.38,
-        size.height * 0.50,
-        size.width * 0.52,
-        size.height * 0.56,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.70,
-        size.height * 0.63,
-        size.width * 0.82,
-        size.height * 0.30,
       );
-
-    canvas.drawLine(
-      Offset(0, size.height * 0.28),
-      Offset(size.width, size.height * 0.72),
-      roadPaint,
-    );
-
-    canvas.drawLine(
-      Offset(size.width * 0.05, size.height * 0.82),
-      Offset(size.width * 0.92, size.height * 0.18),
-      roadPaintSmall,
-    );
-
-    canvas.drawPath(routePath, routePaint);
-
-    _drawMarker(
-      canvas,
-      Offset(size.width * 0.18, size.height * 0.72),
-      AppColors.navyLight,
-    );
-
-    _drawMarker(
-      canvas,
-      Offset(size.width * 0.82, size.height * 0.30),
-      AppColors.clay,
-    );
-
-    _drawDriverMarker(canvas, Offset(size.width * 0.53, size.height * 0.56));
+    }
   }
 
-  void _drawMarker(Canvas canvas, Offset position, Color color) {
-    final paint = Paint()..color = color;
-
-    canvas.drawCircle(position, 9, paint);
-
-    final inner = Paint()..color = AppColors.white;
-
-    canvas.drawCircle(position, 4, inner);
-  }
-
-  void _drawDriverMarker(Canvas canvas, Offset position) {
-    final shadow = Paint()..color = AppColors.navy.withOpacity(0.16);
-
-    canvas.drawCircle(position, 19, shadow);
-
-    final paint = Paint()..color = AppColors.navy;
-
-    canvas.drawCircle(position, 14, paint);
-
-    final iconPaint = Paint()
-      ..color = AppColors.white
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(position, 5, iconPaint);
+  void _showCompletedModal() {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DriverCompletedModal(
+        totalFare: _totalFare,
+        driverNet: _driverNet,
+        commission: _commission,
+        onSubmitRating: (score, comment) async {
+          try {
+            final apiClient = ref.read(apiClientProvider);
+            final user = ref.read(authControllerProvider).user;
+            if (user != null) {
+              await apiClient.post(
+                ApiEndpoints.ratings,
+                body: {
+                  'ride_id': int.tryParse(widget.rideId) ?? 1,
+                  'driver_id': user.id,
+                  'client_id': 5, // ID temporal o dinámico del cliente
+                  'evaluator_role': 'driver',
+                  'score': score,
+                  'comment': comment,
+                  'is_anonymous': false,
+                },
+                requiresAuth: true,
+              );
+            }
+          } catch (_) {}
+        },
+        onBackHome: () {
+          Navigator.pop(ctx);
+          context.go('/driver/home');
+        },
+        onGoAvailable: () {
+          Navigator.pop(ctx);
+          context.go('/driver/home');
+        },
+      ),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF030812),
+      body: Stack(
+        children: [
+          // 1. Google Maps en pantalla completa con estilo Oscuro Futurista
+          Positioned.fill(
+            child: GoogleMap(
+              initialCameraPosition: const CameraPosition(
+                target: _concepcionCenter,
+                zoom: 15.0,
+                tilt: 45.0, // Inclinación 3D idéntica a los mockups[cite: 61, 93, 95]
+              ),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _mapController?.setMapStyle(_darkMapStyle);
+              },
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: false,
+              mapToolbarEnabled: false,
+            ),
+          ),
+
+          // 2. Banner Superior Dinámico según el Estado del Viaje
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 12,
+            left: 16,
+            right: 16,
+            child: _buildDynamicTopBanner(),
+          ),
+
+          // 3. Panel Inferior Interactivo con el Deslizador "Slide to Act"
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: DriverActiveTripPanel(
+              status: _currentStatus,
+              clientName: 'María Fernanda',
+              origin: 'Plaza Principal - Concepción',
+              destination: 'Barrio Zapocó',
+              distanceText: '2,1 km',
+              timeText: '6 min',
+              onSlideComplete: () {
+                if (_currentStatus == 'ACEPTADO') {
+                  _updateStatus('EN_ORIGEN');
+                } else if (_currentStatus == 'EN_ORIGEN') {
+                  _updateStatus('EN_CURSO');
+                } else if (_currentStatus == 'EN_CURSO') {
+                  _updateStatus('FINALIZADO');
+                }
+              },
+              onCancel: () {
+                // Cancelar servicio endpoint POST /api/ride-requests/{id}/cancel[cite: 60]
+                context.go('/driver/home');
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDynamicTopBanner() {
+    String title = 'Solicitud aceptada';
+    String subtitle = 'Dirígete al punto de recogida';
+    Color glowColor = const Color(0xFF0075FF);
+
+    if (_currentStatus == 'EN_ORIGEN') {
+      title = '¡Has llegado al punto de recogida!';
+      subtitle = 'Espera al pasajero en el punto indicado.';
+      glowColor = AppColors.success;
+    } else if (_currentStatus == 'EN_CURSO') {
+      title = 'Pasajero a bordo';
+      subtitle = 'Ahora dirígete al destino.';
+      glowColor = const Color(0xFF0075FF);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF071220).withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: glowColor, width: 1.5),
+        boxShadow: [BoxShadow(color: glowColor.withValues(alpha: 0.4), blurRadius: 16)],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.navigation_rounded, color: glowColor, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13.5)),
+                Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

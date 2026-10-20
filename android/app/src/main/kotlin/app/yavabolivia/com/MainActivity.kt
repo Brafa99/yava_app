@@ -1,4 +1,4 @@
-package com.example.yava_delivery_driver
+package app.yavabolivia.com
 
 import io.flutter.embedding.android.FlutterActivity
 
