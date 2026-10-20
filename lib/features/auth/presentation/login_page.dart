@@ -418,16 +418,25 @@ class _GlassTextField extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        // Blur moderado (5.0) para efecto cristal sin verse borroso en Android Impeller
+        filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
+            // Fondo carbón oscuro traslúcido para alto contraste con letras blancas
+            color: const Color(0xFF14161C).withValues(alpha: 0.68),
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.28),
-              width: 1.1,
+              color: Colors.white.withValues(alpha: 0.42),
+              width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: TextField(
@@ -436,14 +445,17 @@ class _GlassTextField extends StatelessWidget {
             keyboardType: keyboardType,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
             ),
             cursorColor: const Color(0xFFFF122E),
             decoration: InputDecoration(
+              filled: false, // <-- Evita que el Theme global sobreponga un fondo opaco/borroso
+              isCollapsed: false,
               hintText: hintText,
               hintStyle: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
+                color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 15,
                 fontWeight: FontWeight.w400,
               ),
@@ -451,7 +463,7 @@ class _GlassTextField extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 18, right: 12),
                 child: Icon(
                   prefixIcon,
-                  color: Colors.white.withValues(alpha: 0.90),
+                  color: Colors.white,
                   size: 22,
                 ),
               ),
@@ -463,9 +475,11 @@ class _GlassTextField extends StatelessWidget {
                     )
                   : null,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 20,
-                vertical: 16,
+                vertical: 15,
               ),
             ),
           ),
