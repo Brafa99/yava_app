@@ -73,35 +73,35 @@ class CustomerTopBar extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6), // Separación limpia entre el logo y el selector de ciudad
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF061426).withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.location_on_rounded, size: 13, color: Colors.white),
-              SizedBox(width: 5),
-              Text(
-                'Concepción, Santa Cruz',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(width: 4),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 15,
-                color: Colors.white70,
-              ),
-            ],
-          ),
-        ),
+        // Container(
+        //   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        //   decoration: BoxDecoration(
+        //     color: const Color(0xFF061426).withValues(alpha: 0.75),
+        //     borderRadius: BorderRadius.circular(20),
+        //     border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        //   ),
+        //   child: const Row(
+        //     mainAxisSize: MainAxisSize.min,
+        //     children: [
+        //       Icon(Icons.location_on_rounded, size: 13, color: Colors.white),
+        //       SizedBox(width: 5),
+        //       Text(
+        //         'Concepción, Santa Cruz',
+        //         style: TextStyle(
+        //           color: Colors.white,
+        //           fontSize: 11,
+        //           fontWeight: FontWeight.w700,
+        //         ),
+        //       ),
+        //       SizedBox(width: 4),
+        //       Icon(
+        //         Icons.keyboard_arrow_down_rounded,
+        //         size: 15,
+        //         color: Colors.white70,
+        //       ),
+        //     ],
+        //   ),
+        // ),
       ],
     );
   }

@@ -1,19 +1,22 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:yava_delivery_driver/app/theme/app_colors.dart';
+import 'package:yava_delivery_driver/features/auth/application/auth_controller.dart';
 
-class DriverProfilePage extends StatefulWidget {
+class DriverProfilePage extends ConsumerStatefulWidget { // ✅ 
   const DriverProfilePage({super.key});
 
   static const routePath = '/driver/profile';
 
   @override
-  State<DriverProfilePage> createState() => _DriverProfilePageState();
+  ConsumerState<DriverProfilePage> createState() => _DriverHomePageState(); // ✅ 
 }
 
-class _DriverProfilePageState extends State<DriverProfilePage> {
+class _DriverHomePageState extends ConsumerState<DriverProfilePage> { // ✅ 
+
   bool _loggingOut = false;
 
   User? get _currentUser => FirebaseAuth.instance.currentUser;
@@ -58,33 +61,14 @@ class _DriverProfilePageState extends State<DriverProfilePage> {
         .toUpperCase();
   }
 
+
   Future<void> _logout() async {
-    if (_loggingOut) return;
-
-    setState(() {
-      _loggingOut = true;
-    });
-
-    try {
-      await FirebaseAuth.instance.signOut();
-
-      if (!mounted) return;
-
-      context.go('/login');
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _loggingOut = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo cerrar sesión: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    // 1. Cierra sesión en el backend (elimina el token Sanctum) y limpia el estado local
+    await ref.read(authControllerProvider.notifier).signOut();
+    
+    // 2. Si el widget sigue montado en la pantalla, redirige al Login
+    if (!mounted) return;
+    context.go('/login');
   }
 
   Future<void> _confirmLogout() async {
@@ -107,6 +91,7 @@ class _DriverProfilePageState extends State<DriverProfilePage> {
           actions: [
             TextButton(
               onPressed: () {
+                // Devuelve false al cerrar el diálogo
                 Navigator.of(dialogContext).pop(false);
               },
               child: const Text(
@@ -123,6 +108,7 @@ class _DriverProfilePageState extends State<DriverProfilePage> {
                 foregroundColor: AppColors.white,
               ),
               onPressed: () {
+                // Devuelve true al cerrar el diálogo indicando confirmación
                 Navigator.of(dialogContext).pop(true);
               },
               child: const Text(
@@ -135,10 +121,12 @@ class _DriverProfilePageState extends State<DriverProfilePage> {
       },
     );
 
+    // Si el usuario confirmó (shouldLogout es true), ejecuta el método real
     if (shouldLogout == true) {
       await _logout();
     }
   }
+
 
   void _goBack() {
     if (context.canPop()) {

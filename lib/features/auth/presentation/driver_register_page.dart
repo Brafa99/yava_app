@@ -9,7 +9,6 @@ import 'package:yava_delivery_driver/core/services/onboarding_service.dart';
 import 'package:yava_delivery_driver/features/auth/application/auth_controller.dart';
 import 'package:yava_delivery_driver/features/auth/presentation/driver_register_steps_2.dart';
 
-
 class DriverRegisterPage extends ConsumerStatefulWidget {
   const DriverRegisterPage({super.key});
 
@@ -24,15 +23,12 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
   final PageController _pageController = PageController();
   final ImagePicker _picker = ImagePicker();
 
-  /// 0 al 6 -> Equivale a Paso 1 de 7 hasta Paso 7 de 7
   int _currentStep = 0;
   bool _isSubmitting = false;
   bool _obscurePassword = true;
-
-  /// En el Paso 7 permite alternar entre "En revisión" (Paso8.png) y "¡Registro completado!" (Paso9.png)
   bool _isApprovedPreview = false;
 
-  // Controladores Paso 1 (Datos personales)
+  // Paso 1: Datos personales
   final _fullNameCtrl = TextEditingController();
   final _ciCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -41,27 +37,27 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
   final _birthDateCtrl = TextEditingController();
   String _selectedCity = 'Concepción';
 
-  // Paso 2 (Tipo de vehículo)
+  // Paso 2: Tipo de vehículo
   String _selectedVehicleType = 'Automóvil';
 
-  // Paso 3 (Información del vehículo)
+  // Paso 3: Información del vehículo
   String _selectedBrand = 'Chevrolet';
   String _selectedModel = 'Onix';
   String _selectedYear = '2023';
   final _plateCtrl = TextEditingController(text: '4325-ABC');
   String _selectedColor = 'Blanco';
 
-  // Paso 5 (Datos de pago)
+  // Paso 5: Datos de pago
   String _selectedBank = 'Banco Unión';
   String _selectedAccountType = 'Caja de Ahorros';
   final _accountNumberCtrl = TextEditingController();
   final _accountHolderCtrl = TextEditingController();
   final _cciCtrl = TextEditingController();
 
-  // Paso 6 (6 Términos y condiciones)
+  // Paso 6: Términos y condiciones
   final List<bool> _termsAccepted = [true, true, true, true, true, true];
 
-  // Rutas locales de fotos reales tomadas con cámara o galería
+  // Rutas de archivos locales
   final Map<String, String> _filePaths = {
     'car_front': '',
     'car_back': '',
@@ -142,7 +138,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     super.dispose();
   }
 
-  /// Selector real de cámara o galería para cualquier documento o foto de vehículo
   Future<void> _pickDocumentImage(String key, String label) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -215,39 +210,79 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     }
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: const Color(0xFFE50914),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   bool _validateCurrentStep() {
+    // Paso 1 (Índice 0): Datos Personales
     if (_currentStep == 0) {
       if (_fullNameCtrl.text.trim().length < 3 ||
           _ciCtrl.text.trim().isEmpty ||
-          _phoneCtrl.text.trim().length < 7) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Completa tu nombre, CI y número de celular.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+          _phoneCtrl.text.trim().length < 7 ||
+          _emailCtrl.text.trim().isEmpty ||
+          !_emailCtrl.text.contains('@') ||
+          _birthDateCtrl.text.isEmpty) {
+        _showError('Completa todos los campos de datos personales (incluyendo correo y fecha).');
         return false;
       }
-      if (_passwordCtrl.text.isNotEmpty && _passwordCtrl.text.length < 8) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('La contraseña debe tener al menos 8 caracteres.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-        return false;
-      }
-    } else if (_currentStep == 5) {
-      if (_termsAccepted.any((accepted) => !accepted)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes aceptar todos los términos y condiciones para continuar.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+      if (_passwordCtrl.text.isEmpty || _passwordCtrl.text.length < 8) {
+        _showError('La contraseña es obligatoria y debe tener al menos 8 caracteres.');
         return false;
       }
     }
+    
+    // Paso 2 (Índice 1): Tipo de vehículo (Siempre es válido por tener valor por defecto)
+    
+    // Paso 3 (Índice 2): Información del vehículo y fotos
+    else if (_currentStep == 2) {
+      if (_plateCtrl.text.trim().isEmpty) {
+        _showError('Debes ingresar la placa de tu vehículo.');
+        return false;
+      }
+      if (_filePaths['car_front']!.isEmpty || _filePaths['car_back']!.isEmpty) {
+        _showError('Debes subir la foto frontal y posterior de tu vehículo.');
+        return false;
+      }
+    }
+    
+    // Paso 4 (Índice 3): Documentos obligatorios
+    else if (_currentStep == 3) {
+      final missingDocs = <String>[];
+      if (_filePaths['ci_front']!.isEmpty || _filePaths['ci_back']!.isEmpty) missingDocs.add('Cédula de Identidad');
+      if (_filePaths['license_front']!.isEmpty || _filePaths['license_back']!.isEmpty) missingDocs.add('Licencia de Conducir');
+      if (_filePaths['ruat']!.isEmpty) missingDocs.add('RUAT');
+      if (_filePaths['soat']!.isEmpty) missingDocs.add('SOAT');
+      if (_filePaths['rejap']!.isEmpty) missingDocs.add('Antecedentes (REJAP)');
+      
+      if (missingDocs.isNotEmpty) {
+        _showError('Te faltan los siguientes documentos: ${missingDocs.join(', ')}');
+        return false;
+      }
+    }
+
+    // Paso 5 (Índice 4): Datos de Pago (No es estricto en este demo, pero se puede agregar validación de cuenta)
+    else if (_currentStep == 4) {
+      if (_accountNumberCtrl.text.trim().isEmpty || _accountHolderCtrl.text.trim().isEmpty) {
+        _showError('Ingresa el número de cuenta y el titular para recibir tus pagos.');
+        return false;
+      }
+    }
+
+    // Paso 6 (Índice 5): Términos y Condiciones
+    else if (_currentStep == 5) {
+      if (_termsAccepted.any((accepted) => !accepted)) {
+        _showError('Debes aceptar todos los términos y condiciones para finalizar el registro.');
+        return false;
+      }
+    }
+    
     return true;
   }
 
@@ -261,7 +296,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
         curve: Curves.easeOutCubic,
       );
     } else if (_currentStep == 5) {
-      // Al terminar el Paso 6 (Términos), enviamos todo a Laravel y pasamos al Paso 7 (Revisión)
       _submitToBackend();
     }
   }
@@ -305,6 +339,38 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     }
   }
 
+  Map<String, dynamic> _buildDriverTermsPayload() {
+    final now = DateTime.now().toUtc().toIso8601String();
+    return {
+      'terms_and_conditions': {
+        'accepted': true,
+        'version': '1.0',
+        'accepted_at': now,
+      },
+      'privacy_policy': {
+        'accepted': true,
+        'version': '1.0',
+        'accepted_at': now,
+      },
+      'platform_rules': {
+        'accepted': true,
+        'accepted_at': now,
+      },
+      'traffic_regulations': {
+        'accepted': true,
+        'accepted_at': now,
+      },
+      'truthfulness_declaration': {
+        'accepted': true,
+        'accepted_at': now,
+      },
+      'code_of_conduct': {
+        'accepted': true,
+        'accepted_at': now,
+      },
+    };
+  }
+
   Future<void> _submitToBackend() async {
     setState(() => _isSubmitting = true);
     final warnings = <String>[];
@@ -323,7 +389,7 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
           ? _passwordCtrl.text
           : 'Yava${phone.replaceAll(RegExp(r'[^0-9]'), '')}!';
 
-      // 1. POST /api/driver/register (Crea el conductor con estado inicial EN_REVISION)
+      // 1. POST /api/driver/register
       var user = await controller.registerDriver(
         name: firstName,
         lastName: lastName,
@@ -331,7 +397,9 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
         password: password,
         phone: phone,
         ci: _ciCtrl.text.trim(),
+        birthDate: _birthDateCtrl.text.trim().isNotEmpty ? _birthDateCtrl.text.trim() : null,
         city: _selectedCity,
+        termAndRequirement: _buildDriverTermsPayload(),
       );
 
       if (user == null) {
@@ -340,9 +408,7 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
         throw Exception(err);
       }
 
-      // BLINDAJE DE TOKEN SANCTUM:
-      // Si /api/driver/register no devuelve token en el JSON, iniciamos sesión automáticamente
-      // para obtener el Bearer Token necesario para subir vehículo y documentos.
+      // Si el registro no retorna token, se autentica directamente
       final currentToken = await storage.getToken();
       if (currentToken == null || currentToken.isEmpty) {
         final loggedUser = await controller.signIn(
@@ -356,7 +422,7 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
 
       final userId = user.id;
 
-      // 2. PUT /api/driver/{driverId}/update (Guarda CI y birth_date en la tabla users)
+      // 2. PUT /api/driver/{driverId}/update (Actualización de perfil)
       try {
         await apiClient.put(
           ApiEndpoints.driverUpdate(userId),
@@ -372,11 +438,10 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
           requiresAuth: true,
         );
       } catch (e) {
-        debugPrint('Error en PUT /driver/$userId/update: $e');
         warnings.add('Datos adicionales: $e');
       }
 
-      // 3. POST /api/driver/{driverId}/services (Asigna categorías de servicio al conductor)
+      // 3. POST /api/driver/{driverId}/services (Asignación de categorías de servicio)
       try {
         await apiClient.post(
           ApiEndpoints.driverServices(userId),
@@ -386,10 +451,10 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
           requiresAuth: true,
         );
       } catch (e) {
-        debugPrint('Error en POST /driver/$userId/services: $e');
+        debugPrint('Error en driver services: $e');
       }
 
-      // 4. POST /api/driver/vehicle (Multipart: datos del vehículo + RUAT, SOAT, Inspección y Fotos)
+      // 4. POST /api/driver/vehicle (Carga multipart de vehículo)
       try {
         await apiClient.postMultipart(
           ApiEndpoints.driverVehicle,
@@ -397,7 +462,7 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
             'user_id': userId.toString(),
             'placa': _plateCtrl.text.trim().isNotEmpty
                 ? _plateCtrl.text.trim()
-                : 'S/N-${userId}',
+                : 'S/N-$userId',
             'tipo_vehiculo': _selectedVehicleType,
             'marca': _selectedBrand,
             'modelo': _selectedModel,
@@ -418,11 +483,10 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
           requiresAuth: true,
         );
       } catch (e) {
-        debugPrint('Error en POST /driver/vehicle: $e');
         warnings.add('Vehículo: $e');
       }
 
-      // 5. POST /api/driver/documents (Multipart: Carnet, Licencia y REJAP/Autorización)
+      // 5. POST /api/driver/documents (Carga multipart de documentos)
       final hasAnyDoc = _filePaths['ci_front']!.isNotEmpty ||
           _filePaths['ci_back']!.isNotEmpty ||
           _filePaths['license_front']!.isNotEmpty ||
@@ -449,12 +513,13 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
             requiresAuth: true,
           );
         } catch (e) {
-          debugPrint('Error en POST /driver/documents: $e');
           warnings.add('Documentos: $e');
         }
       }
 
-      await ref.read(onboardingServiceProvider).markCompleted();
+      try {
+        await ref.read(onboardingServiceProvider).markCompleted();
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -471,7 +536,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
         );
       }
 
-      // Avanza al Paso 7 de 7 (En revisión / Completado)
       _pageController.animateToPage(
         6,
         duration: const Duration(milliseconds: 350),
@@ -500,7 +564,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
         body: SizedBox.expand(
           child: Stack(
             children: [
-              // 1. Fondo superior unificado (Tu imagen de cabecera en assets/images/)
               Positioned(
                 top: 0,
                 left: 0,
@@ -521,7 +584,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
                 ),
               ),
 
-              // 2. Fundido blanco suave para unir el fondo con el formulario
               Positioned(
                 top: 265,
                 left: 0,
@@ -543,10 +605,9 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
                 ),
               ),
 
-              // 3. Contenido principal dividido en Cabecera de Progreso + 7 Pasos + Botonera Inferior
               Column(
                 children: [
-                  SizedBox(height: topPadding + 4),
+                  SizedBox(height: topPadding + 30),
                   _buildTopProgressHeader(),
 
                   Expanded(
@@ -578,16 +639,18 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
                         DriverStep7ReviewStatus(
                           isApprovedPreview: _isApprovedPreview,
                           onTogglePreviewMode: () {
-                            setState(() => _isApprovedPreview = !_isApprovedPreview);
+                            setState(
+                              () => _isApprovedPreview = !_isApprovedPreview,
+                            );
                           },
-                          onBackToStart: () => context.go('/auth-entry'),
+                          onBackToStart: () =>
+                              context.go('/login'), // <--- Cambio aplicado aquí
                           onGoToDriverPanel: () => context.go('/driver/home'),
                         ),
                       ],
                     ),
                   ),
 
-                  // Barra de botones inferior (Pasos 1 al 6)
                   if (_currentStep < 6) _buildBottomNavigationBar(),
                 ],
               ),
@@ -598,7 +661,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     );
   }
 
-  // --- CABECERA CON "Paso X de 7" Y BARRA ROJA CON NODOS ---
   Widget _buildTopProgressHeader() {
     final stepNumber = _currentStep + 1;
     final progressFactor = (stepNumber / 7.0).clamp(0.15, 1.0);
@@ -698,7 +760,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     );
   }
 
-  // --- BOTONERA INFERIOR (Sencilla en Pasos 1-4, Con botón "Atrás" en Pasos 5-6) ---
   Widget _buildBottomNavigationBar() {
     final showBackButton = _currentStep == 4 || _currentStep == 5;
 
@@ -786,9 +847,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     );
   }
 
-  // ===========================================================================
-  // PASO 1 DE 7: DATOS PERSONALES (Réplica de Paso2_3.png)
-  // ===========================================================================
   Widget _buildStep1PersonalData() {
     return DriverStepLayout(
       title: 'Datos personales',
@@ -869,9 +927,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     );
   }
 
-  // ===========================================================================
-  // PASO 2 DE 7: TIPO DE VEHÍCULO (Réplica de Paso3_2.png)
-  // ===========================================================================
   Widget _buildStep2VehicleType() {
     final options = [
       (
@@ -1048,9 +1103,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     );
   }
 
-  // ===========================================================================
-  // PASO 3 DE 7: INFORMACIÓN DEL VEHÍCULO (Réplica de Paso4.png en 2 columnas)
-  // ===========================================================================
   Widget _buildStep3VehicleInfo() {
     return DriverStepLayout(
       title: 'Información\ndel vehículo',
@@ -1059,7 +1111,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Columna Izquierda: 5 Campos (Marca, Modelo, Año, Placa, Color)
             Expanded(
               flex: 11,
               child: Column(
@@ -1119,8 +1170,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
               ),
             ),
             const SizedBox(width: 12),
-
-            // Columna Derecha: Foto frontal y Foto parte posterior
             Expanded(
               flex: 9,
               child: Column(
@@ -1237,9 +1286,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
     );
   }
 
-  // ===========================================================================
-  // PASO 4 DE 7: DOCUMENTOS REQUERIDOS (Réplica de Paso5.png)
-  // ===========================================================================
   Widget _buildStep4Documents() {
     return DriverStepLayout(
       title: 'Documentos\nrequeridos',
@@ -1379,7 +1425,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
               ],
             ),
           ),
-          // Miniatura de vista previa del documento
           GestureDetector(
             onTap: () => _pickDocumentImage(primaryKey, '$title (Anverso)'),
             child: Container(
@@ -1427,7 +1472,6 @@ class _DriverRegisterPageState extends ConsumerState<DriverRegisterPage> {
                       ),
               ),
             ),
-          // Botón de cámara con check verde
           GestureDetector(
             onTap: () => _pickDocumentImage(primaryKey, title),
             child: Stack(

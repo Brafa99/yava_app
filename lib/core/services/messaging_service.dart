@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../network/api_client.dart';
@@ -14,13 +15,23 @@ class MessagingService {
     required this.apiClient,
     required this.storageService,
   }) {
-    // En Web evitamos llamar a instance si no está configurado el service worker
     if (!kIsWeb) {
       try {
         _fcm = FirebaseMessaging.instance;
       } catch (e) {
         log('FirebaseMessaging no disponible: $e');
       }
+    }
+  }
+
+  /// Retorna el token FCM actual del dispositivo
+  Future<String?> getToken() async {
+    if (kIsWeb || _fcm == null) return null;
+    try {
+      return await _fcm!.getToken();
+    } catch (e) {
+      log('Error al obtener FCM token: $e');
+      return null;
     }
   }
 
@@ -56,14 +67,21 @@ class MessagingService {
       final userToken = await storageService.getToken();
       if (userToken == null || userToken.isEmpty) return;
 
-      final fcmToken = token ?? await _fcm?.getToken();
-      if (fcmToken != null) {
+      final fcmToken = token ?? await getToken();
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        final platformName = kIsWeb
+            ? 'web'
+            : (Platform.isAndroid ? 'android' : 'ios');
+
         await apiClient.post(
           ApiEndpoints.updateToken,
-          body: {'device_token': fcmToken},
+          body: {
+            'device_token': fcmToken,
+            'platform': platformName,
+          },
           requiresAuth: true,
         );
-        log('FCM Token sincronizado con Laravel: $fcmToken');
+        log('FCM Token sincronizado con Laravel: $fcmToken ($platformName)');
       }
     } catch (e) {
       log('FCM sync error: $e');

@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../app/theme/yava_ui_tokens.dart';
 
@@ -19,21 +22,20 @@ class DriverTopBar extends StatelessWidget {
             _circularBtn(Icons.menu_rounded, () {}),
             Row(
               children: [
-                RichText(
-                  text: const TextSpan(
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                      color: Colors.white,
-                    ),
-                    children: [
-                      TextSpan(text: 'YAV'),
-                      TextSpan(
-                        text: 'A',
-                        style: TextStyle(color: Color(0xFFE50914)),
+                SizedBox(
+                  height: 36,
+                  child: Image.asset(
+                    'assets/images/yava_home_bg.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text(
+                      'YAVÁ',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 25,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
                       ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -48,32 +50,88 @@ class DriverTopBar extends StatelessWidget {
                 ),
               ],
             ),
-            _circularBtn(Icons.notifications_rounded, () {}, hasBadge: true),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // _circularButton(
+                  //   isNight ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+                  //   onToggleTheme,
+                  //   iconColor: isNight ? Colors.amber : Colors.white,
+                  // ),
+                  const SizedBox(width: 6),
+                  _circularBtn(Icons.notifications_rounded, () {}, hasBadge: true),
+                ],
+              ),
+            ),
+            
           ],
         ),
         const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF061426).withValues(alpha: 0.65),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.location_on_rounded, size: 13, color: Colors.white),
-              SizedBox(width: 5),
-              Text(
-                'Concepción, Santa Cruz',
-                style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
-              ),
-              SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Colors.white70),
-            ],
-          ),
-        ),
+        // Container(
+        //   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        //   decoration: BoxDecoration(
+        //     color: const Color(0xFF061426).withValues(alpha: 0.65),
+        //     borderRadius: BorderRadius.circular(20),
+        //     border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        //   ),
+        //   child: const Row(
+        //     mainAxisSize: MainAxisSize.min,
+        //     children: [
+        //       Icon(Icons.location_on_rounded, size: 13, color: Colors.white),
+        //       SizedBox(width: 5),
+        //       Text(
+        //         'Concepción, Santa Cruz',
+        //         style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
+        //       ),
+        //       SizedBox(width: 4),
+        //       Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Colors.white70),
+        //     ],
+        //   ),
+        // ),
       ],
+    );
+  }
+
+    Widget _circularButton(
+    IconData icon,
+    VoidCallback onTap, {
+    bool hasBadge = false,
+    Color iconColor = Colors.white,
+  }) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: const Color(0xFF09182B).withValues(alpha: 0.70),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: IconButton(
+        onPressed: onTap,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(icon, color: iconColor, size: 18),
+            if (hasBadge)
+              Positioned(
+                right: -1,
+                top: -1,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE50914),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -205,13 +263,14 @@ class DriverAvailabilityBar extends StatelessWidget {
                   style: TextStyle(
                     color: isOnline ? Colors.white : Colors.white60,
                     fontWeight: FontWeight.w900,
-                    fontSize: 10.5,
+                    fontSize: 8.5,
                   ),
                 ),
                 const Spacer(),
                 isLoading
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : Switch.adaptive(
+                        
                         value: isOnline,
                         activeColor: YavaUiTokens.onlineGreen,
                         onChanged: onToggle,
@@ -311,11 +370,12 @@ class DriverMiniMapSection extends StatefulWidget {
 
 class _DriverMiniMapSectionState extends State<DriverMiniMapSection> {
   GoogleMapController? _mapController;
-  
-  // Ubicación por defecto en Concepción, Santa Cruz
-  static const LatLng _initialPosition = LatLng(-16.1311, -62.0298);
 
-  // Estilo JSON oficial para oscurecer Google Maps (Estilo Cyber / Dark Mode)
+  // Ubicación por defecto en Concepción (fallback)
+  static const LatLng _initialPosition = LatLng(-16.1311, -62.0298);
+  LatLng _currentLocation = _initialPosition;
+
+  // Estilo JSON oficial para oscurecer Google Maps
   static const String _darkMapStyle = '''
   [
     {"elementType": "geometry", "stylers": [{"color": "#081528"}]},
@@ -334,10 +394,51 @@ class _DriverMiniMapSectionState extends State<DriverMiniMapSection> {
   ]
   ''';
 
+  @override
+  void initState() {
+    super.initState();
+    _initCurrentLocation();
+  }
+
+  Future<void> _initCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return; // Los permisos ya se manejaron en el Splash
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(pos.latitude, pos.longitude);
+        });
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(_currentLocation, 15),
+        );
+      }
+    } catch (_) {
+      // Usar _initialPosition si falla el GPS
+    }
+  }
+
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
-    // Aplicamos el diseño de mapa oscuro futurista
     _mapController?.setMapStyle(_darkMapStyle);
+    // Centrar en la ubicación actual inmediatamente si ya se cargó
+    if (_currentLocation != _initialPosition) {
+      _mapController?.moveCamera(
+        CameraUpdate.newLatLngZoom(_currentLocation, 15),
+      );
+    }
   }
 
   @override
@@ -353,17 +454,19 @@ class _DriverMiniMapSectionState extends State<DriverMiniMapSection> {
       decoration: BoxDecoration(
         color: const Color(0xFF081528),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF0075FF).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(0xFF0075FF).withValues(alpha: 0.5),
+        ),
         boxShadow: YavaUiTokens.neonGlow(const Color(0xFF0075FF), blur: 12),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(21),
         child: Stack(
           children: [
-            // Mapa Real interactivo de Google Maps
+            // Mapa Real Interactivo
             GoogleMap(
-              initialCameraPosition: const CameraPosition(
-                target: _initialPosition,
+              initialCameraPosition: CameraPosition(
+                target: _currentLocation,
                 zoom: 14.5,
               ),
               onMapCreated: _onMapCreated,
@@ -372,27 +475,29 @@ class _DriverMiniMapSectionState extends State<DriverMiniMapSection> {
               zoomControlsEnabled: false,
               compassEnabled: false,
               mapToolbarEnabled: false,
-              rotateGesturesEnabled: false,
+
+              // Habilitamos gestos interactivos
+              rotateGesturesEnabled: true,
               scrollGesturesEnabled: true,
-              tiltGesturesEnabled: false,
+              tiltGesturesEnabled: true,
+              zoomGesturesEnabled: true,
+
+              // Reconocedor de gestos para priorizar el mapa sobre el scroll padre
+              gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                Factory<OneSequenceGestureRecognizer>(
+                  () => EagerGestureRecognizer(),
+                ),
+              },
             ),
 
-            // Capa transparente opcional para evitar que el usuario interfiera accidentalmente con el mini scroll del mapa pequeño,
-            // (O puedes quitar este IgnorePointer si deseas que el mini mapa sea completamente interactivo al deslizarlo).
-            // IgnorePointer(
-            //   child: Container(color: Colors.transparent),
-            // ),
-
-            // Botones flotantes de control estéticos
             Positioned(
               left: 12,
               top: 12,
               child: Column(
                 children: [
-                  _btn(Icons.my_location_rounded, () {
-                    _mapController?.animateCamera(
-                      CameraUpdate.newLatLngZoom(_initialPosition, 15),
-                    );
+                  _btn(Icons.my_location_rounded, () async {
+                    // Actualiza y centra la ubicación al tocar el botón
+                    await _initCurrentLocation();
                   }),
                   const SizedBox(height: 8),
                   _btn(Icons.layers_rounded, () {}),
@@ -652,7 +757,7 @@ class DriverBottomNavBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _item(0, Icons.home_rounded, 'Inicio'),
-                _item(1, Icons.assignment_outlined, 'Servicios'),
+                _item(1, Icons.assignment_outlined, 'Solicitudes'),
                 _centerBtn(),
                 _item(3, Icons.account_balance_wallet_outlined, 'Ganancias'),
                 _item(4, Icons.person_outline_rounded, 'Perfil'),

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart'; // <-- Inyectado Geolocator
 import 'package:go_router/go_router.dart';
 import 'package:yava_delivery_driver/core/services/onboarding_service.dart';
 import 'package:yava_delivery_driver/features/auth/application/auth_controller.dart';
@@ -21,12 +22,12 @@ class _SplashPageState extends ConsumerState<SplashPage>
   int _currentSlide = 0;
   AppUser? _loadedUser;
   bool _authCheckCompleted = false;
+  bool _locationCheckCompleted = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Duración total de 8 segundos (4 seg para la vista 1 y 4 seg para la vista 2)
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -38,16 +39,15 @@ class _SplashPageState extends ConsumerState<SplashPage>
 
     _progressController.forward().whenComplete(_navigateNext);
 
-    // Retrasamos la llamada al provider para que no ocurra durante el build/initState
-    Future.microtask(() => _checkSessionInParallel());
+    Future.microtask(() {
+      _checkSessionInParallel();
+      _requestLocationPermissions(); // <-- Solicitar permisos en paralelo
+    });
   }
 
-  /// Verifica el token de Laravel Sanctum en paralelo mientras corre la animación
   Future<void> _checkSessionInParallel() async {
     try {
-      final user = await ref
-          .read(authControllerProvider.notifier)
-          .loadCurrentUser();
+      final user = await ref.read(authControllerProvider.notifier).loadCurrentUser();
       _loadedUser = user;
     } catch (_) {
       _loadedUser = null;
@@ -56,14 +56,40 @@ class _SplashPageState extends ConsumerState<SplashPage>
     }
   }
 
-Future<void> _navigateNext() async {
-    // Si la petición a Laravel tardara un poco más, esperamos máximo 1 seg extra
-    if (!_authCheckCompleted) {
+  /// Solicita el permiso de GPS del sistema operativo mientras carga el splash
+  /// Solicita el permiso de la app y fuerza el encendido del sensor GPS
+  Future<void> _requestLocationPermissions() async {
+    try {
+      // 1. Pedir permisos a nivel de aplicación ANTES de revisar el sensor
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      // 2. Si nos dio permiso, revisamos si tiene el sensor GPS apagado de raíz
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          // Fuerza al usuario a ir a los ajustes del celular para prender el GPS
+          await Geolocator.openLocationSettings();
+          
+          // Opcional: Esperamos unos segundos para darle tiempo de prenderlo y volver
+          await Future.delayed(const Duration(seconds: 3)); 
+        }
+      }
+    } catch (_) {
+      // Ignorar errores silenciosamente para que la app no se congele en el Splash
+    } finally {
+      _locationCheckCompleted = true;
+    }
+  }
+
+  Future<void> _navigateNext() async {
+    if (!_authCheckCompleted || !_locationCheckCompleted) {
       await Future.delayed(const Duration(milliseconds: 600));
     }
     if (!mounted) return;
 
-    // 1. Si hay sesión activa en Laravel, entra directo a su Home correspondiente
     if (_loadedUser != null) {
       if (_loadedUser!.role == 'driver') {
         context.go('/driver/home');
@@ -73,18 +99,15 @@ Future<void> _navigateNext() async {
       return;
     }
 
-    // 2. Si NO hay sesión activa, revisamos si ya tenía cuenta previa o es instalación nueva
     try {
       final completed = await ref.read(onboardingServiceProvider).hasCompleted();
       if (!mounted) return;
-      
-      // Si ya completó registro/login antes y cerró sesión -> va a '/login' (o '/auth-entry' si prefieres que siempre vea la selva)
-      // Si es nuevo o aún no se registró -> va a '/auth-entry' (la pantalla de la selva con "Iniciar sesión" y "Comenzar")
       context.go(completed ? '/login' : '/auth-entry');
     } catch (_) {
       if (mounted) context.go('/auth-entry');
     }
   }
+
   @override
   void dispose() {
     _progressController.dispose();
@@ -104,7 +127,6 @@ Future<void> _navigateNext() async {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Transición suave entre Fondo 1 (Catedral) y Fondo 2 (Pórtico)
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 900),
               switchInCurve: Curves.easeInOut,
@@ -128,8 +150,6 @@ Future<void> _navigateNext() async {
                 ),
               ),
             ),
-
-            // 2. Sombreado sutil superior e inferior para garantizar legibilidad
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -145,33 +165,21 @@ Future<void> _navigateNext() async {
                 ),
               ),
             ),
-
-            // 3. Contenido Superpuesto
             Padding(
               padding: EdgeInsets.fromLTRB(20, topPadding + 54, 20, 26),
               child: Column(
                 children: [
-                  // --- CABECERA: LOGO YAVÁ + NACE EN CONCEPCIÓN ---
                   _buildBrandHeader(),
-
                   const SizedBox(height: 18),
-
-                  // --- TÍTULO DINÁMICO (CAMBIA ENTRE SLIDE 1 Y SLIDE 2) ---
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 650),
                     child: _currentSlide == 0
                         ? _buildFirstSlideTitle()
                         : _buildSecondSlideTitle(),
                   ),
-
                   const Spacer(),
-
-                  // --- BARRA GLASSMORPHISM DE 4 SERVICIOS CON ICONOS NEÓN ---
                   _buildNeonServicesBar(),
-
                   const SizedBox(height: 58),
-
-                  // --- PIE DE PÁGINA: CASA MATRIZ Y BARRA DE PROGRESO ROJA ---
                   _buildFooterProgress(),
                 ],
               ),
@@ -185,7 +193,6 @@ Future<void> _navigateNext() async {
   Widget _buildBrandHeader() {
     return Column(
       children: [
-        // Usa tu logo completo o el texto vectorial idéntico al mockup
         SizedBox(
           height: 58,
           child: Image.asset(
@@ -240,7 +247,6 @@ Future<void> _navigateNext() async {
     );
   }
 
-  /// Título del Slide 1: "Para toda la Chiquitanía" con arco luminoso
   Widget _buildFirstSlideTitle() {
     return Column(
       key: const ValueKey('slide_1_title'),
@@ -275,7 +281,6 @@ Future<void> _navigateNext() async {
     );
   }
 
-  /// Título del Slide 2: "La Chiquitanía conectada en una sola App"
   Widget _buildSecondSlideTitle() {
     return Column(
       key: const ValueKey('slide_2_title'),
@@ -328,7 +333,6 @@ Future<void> _navigateNext() async {
     );
   }
 
-  /// Barra traslúcida con los 4 iconos de neón y divisores verticales
   Widget _buildNeonServicesBar() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -416,8 +420,6 @@ Future<void> _navigateNext() async {
           ),
         ),
         const SizedBox(height: 18),
-
-        // Barra de carga animada (Rojo brillante sobre pista azul oscura)
         AnimatedBuilder(
           animation: _progressController,
           builder: (context, _) {
@@ -497,7 +499,6 @@ class _NeonServiceItem extends StatelessWidget {
   }
 }
 
-/// Dibuja el trazo curvo rojo/blanco brillante debajo del subtítulo
 class _GlowingSwooshPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

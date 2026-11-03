@@ -222,7 +222,7 @@ class _DriverHomePageState extends ConsumerState<DriverHomePage> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Text(
-                              _isOnline ? 'Buscando solicitudes en Concepción...' : 'Actívate para recibir servicios',
+                              _isOnline ? 'Buscando solicitudes...' : 'Actívate para recibir servicios',
                               style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600),
                             ),
                           ),

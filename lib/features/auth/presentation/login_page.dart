@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yava_delivery_driver/core/services/onboarding_service.dart';
 import 'package:yava_delivery_driver/features/auth/application/auth_controller.dart';
+import 'package:yava_delivery_driver/features/auth/presentation/role_selection_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -39,7 +40,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '$feature: Esta función aún está en desarrollo.',
+                  '$feature: Esta función estará disponible próximamente.',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -61,7 +62,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (emailOrPhone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Por favor ingresa tus credenciales.'),
+          content: const Text('Por favor ingresa tu correo y contraseña.'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -77,12 +78,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
 
     if (user != null) {
-      // Marcamos el onboarding como completado al iniciar sesión exitosamente
-      await ref.read(onboardingServiceProvider).markCompleted();
+      try {
+        await ref.read(onboardingServiceProvider).markCompleted();
+      } catch (_) {}
 
       if (!mounted) return;
 
-      // Redirección adaptada al enum 'role' de MySQL ('client' o 'driver')
       if (user.role == 'driver') {
         context.go('/driver/home');
       } else {
@@ -116,7 +117,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 1. Imagen completa de fondo (Pórtico con anillo luminoso y logo YAVÁ arriba)
+              // 1. Imagen de fondo
               Image.asset(
                 'assets/images/login/login_bg.png',
                 fit: BoxFit.cover,
@@ -131,7 +132,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
 
-              // 2. Degradado oscuro suave en la mitad inferior para resaltar los inputs
+              // 2. Degradado oscuro
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -141,14 +142,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       Colors.transparent,
                       Colors.transparent,
                       Colors.black.withValues(alpha: 0.45),
-                      Colors.black.withValues(alpha: 0.78),
+                      Colors.black.withValues(alpha: 0.85),
                     ],
-                    stops: const [0.0, 0.44, 0.65, 1.0],
+                    stops: const [0.0, 0.40, 0.65, 1.0],
                   ),
                 ),
               ),
 
-              // 3. Formulario superpuesto en la mitad inferior
+              // 3. Formulario
               SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -166,37 +167,34 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             children: [
                               const Spacer(),
 
-                              // Campo 1: Correo o Número de celular (Glassmorphism)
                               _GlassTextField(
                                 controller: _identifierController,
-                                hintText: 'Correo o número de celular',
-                                prefixIcon: Icons.smartphone_rounded,
+                                hintText: 'Correo electrónico',
+                                prefixIcon: Icons.mail_outline_rounded,
                                 keyboardType: TextInputType.emailAddress,
                               ),
                               const SizedBox(height: 14),
 
-                              // Campo 2: Contraseña (Glassmorphism)
                               _GlassTextField(
-                                controller: _passwordController,
-                                hintText: 'Contraseña',
-                                prefixIcon: Icons.lock_outline_rounded,
-                                obscureText: _obscurePassword,
-                                suffixIcon: IconButton(
-                                  onPressed: () {
-                                    setState(() => _obscurePassword = !_obscurePassword);
-                                  },
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    color: Colors.white70,
-                                    size: 22,
-                                  ),
-                                ),
-                              ),
+  controller: _passwordController,
+  hintText: 'Contraseña',
+  prefixIcon: Icons.lock_outline_rounded,
+  obscureText: _obscurePassword,
+  suffixIcon: IconButton(
+    onPressed: () {
+      setState(() => _obscurePassword = !_obscurePassword);
+    },
+    icon: Icon(
+      _obscurePassword
+          ? Icons.visibility_off_outlined
+          : Icons.visibility_outlined,
+      color: const Color(0xFF475569), // Color gris oscuro para que sea visible
+      size: 22,
+    ),
+  ),
+),
                               const SizedBox(height: 10),
 
-                              // ¿Olvidaste tu contraseña?
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: GestureDetector(
@@ -213,7 +211,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               const SizedBox(height: 18),
 
-                              // Botón Rojo: Iniciar sesión
                               SizedBox(
                                 height: 54,
                                 child: ElevatedButton(
@@ -263,7 +260,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               const SizedBox(height: 14),
 
-                              // Separador: o continua con
                               Column(
                                 children: [
                                   Text(
@@ -305,7 +301,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               const SizedBox(height: 16),
 
-                              // Botón Blanco: Iniciar sesión con Google
                               SizedBox(
                                 height: 54,
                                 child: ElevatedButton(
@@ -319,13 +314,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       borderRadius: BorderRadius.circular(30),
                                     ),
                                   ),
-                                  child: Row(
+                                  child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      // Icono multicolor de Google
-                                      const _GoogleGLogo(),
-                                      const SizedBox(width: 12),
-                                      const Text(
+                                      _GoogleGLogo(),
+                                      SizedBox(width: 12),
+                                      Text(
                                         'Iniciar sesión con Google',
                                         style: TextStyle(
                                           color: Color(0xFF0F1E36),
@@ -339,7 +333,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               const SizedBox(height: 20),
 
-                              // ¿No tienes una cuenta?
                               Center(
                                 child: Text(
                                   '¿No tienes una cuenta?',
@@ -352,7 +345,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               const SizedBox(height: 10),
 
-                              // Botón Transparente con Borde Blanco: Crear cuenta
                               SizedBox(
                                 height: 50,
                                 child: OutlinedButton(
@@ -395,7 +387,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 }
 
-// --- CAMPO DE TEXTO TRASLÚCIDO (GLASSMORPHISM) ---
+// --- CAMPO DE TEXTO TRASLÚCIDO (GLASSMORPHISM CON ALTO CONTRASTE) ---
 class _GlassTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -415,18 +407,23 @@ class _GlassTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const darkText = Color(0xFF1E293B); // Texto escrito (casi negro)
+    const darkIcon = Color(0xFF475569); // Iconos laterales
+    const hintColor = Color(0xFF64748B); // Texto de fondo (hint)
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
+            // Fondo claro semitransparente para máximo contraste
+            color: Colors.white.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.28),
-              width: 1.1,
+              color: Colors.white.withValues(alpha: 0.90),
+              width: 1.2,
             ),
           ),
           alignment: Alignment.center,
@@ -435,23 +432,23 @@ class _GlassTextField extends StatelessWidget {
             obscureText: obscureText,
             keyboardType: keyboardType,
             style: const TextStyle(
-              color: Colors.white,
+              color: darkText,
               fontSize: 15,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
             ),
-            cursorColor: const Color(0xFFFF122E),
+            cursorColor: const Color(0xFFE50914), // Cursor rojo YAVÁ
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
+              hintStyle: const TextStyle(
+                color: hintColor,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w500,
               ),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 18, right: 12),
                 child: Icon(
                   prefixIcon,
-                  color: Colors.white.withValues(alpha: 0.90),
+                  color: darkIcon,
                   size: 22,
                 ),
               ),
@@ -475,7 +472,6 @@ class _GlassTextField extends StatelessWidget {
   }
 }
 
-// --- ICONO VECTORIAL MULTICOLOR DE GOOGLE ---
 class _GoogleGLogo extends StatelessWidget {
   const _GoogleGLogo();
 
@@ -504,19 +500,15 @@ class _GoogleLogoPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.butt;
 
-    // Rojo superior
     paint.color = const Color(0xFFEA4335);
     canvas.drawArc(rect, -2.35, 1.55, false, paint);
 
-    // Amarillo izquierdo
     paint.color = const Color(0xFFFBBC05);
     canvas.drawArc(rect, 2.35, 1.58, false, paint);
 
-    // Verde inferior
     paint.color = const Color(0xFF34A853);
     canvas.drawArc(rect, 0.75, 1.60, false, paint);
 
-    // Azul derecho + barra horizontal
     paint.color = const Color(0xFF4285F4);
     canvas.drawArc(rect, -0.15, 0.90, false, paint);
 

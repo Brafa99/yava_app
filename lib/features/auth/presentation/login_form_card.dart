@@ -32,6 +32,10 @@ class _LoginFormCardState extends State<LoginFormCard> {
 
   @override
   Widget build(BuildContext context) {
+    // Definimos un color "casi negro" para alto contraste sin ser agresivo
+    const darkInk = Color(0xFF334155); 
+    const borderInactive = Color(0xFFCBD5E1);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -97,19 +101,30 @@ class _LoginFormCardState extends State<LoginFormCard> {
               controller: widget.emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
               decoration: InputDecoration(
-                labelText: 'Correo electrónico',
+                labelText: 'Correo electrónicosfasda',
+                labelStyle: const TextStyle(color: darkInk, fontWeight: FontWeight.w600),
                 hintText: 'tu@correo.com',
-                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20),
+                hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 22, color: darkInk),
                 filled: true,
-                fillColor: AppColors.sand,
-                border: OutlineInputBorder(
+                fillColor: const Color(0xFFF8FAFC),
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(color: borderInactive, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.navy, width: 1.5),
+                  borderSide: const BorderSide(color: AppColors.navy, width: 2.0),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.error, width: 2.0),
                 ),
               ),
               validator: (v) => (v == null || !v.contains('@')) ? 'Correo inválido' : null,
@@ -122,25 +137,38 @@ class _LoginFormCardState extends State<LoginFormCard> {
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _validateAndSubmit(),
+              style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
               decoration: InputDecoration(
                 labelText: 'Contraseña',
-                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                labelStyle: const TextStyle(color: darkInk, fontWeight: FontWeight.w600),
+                hintText: '******',
+                hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 22, color: darkInk),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    size: 20,
+                    size: 22,
+                    color: darkInk,
                   ),
                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
                 filled: true,
-                fillColor: AppColors.sand,
-                border: OutlineInputBorder(
+                fillColor: const Color(0xFFF8FAFC),
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(color: borderInactive, width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.navy, width: 1.5),
+                  borderSide: const BorderSide(color: AppColors.navy, width: 2.0),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.error, width: 2.0),
                 ),
               ),
               validator: (v) => (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
@@ -168,7 +196,7 @@ class _LoginFormCardState extends State<LoginFormCard> {
                     : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Ingresar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          Text('Ingresar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                           SizedBox(width: 8),
                           Icon(Icons.arrow_forward_rounded, size: 18),
                         ],
@@ -180,12 +208,12 @@ class _LoginFormCardState extends State<LoginFormCard> {
             // Divisor
             const Row(
               children: [
-                Expanded(child: Divider(color: AppColors.mist)),
+                Expanded(child: Divider(color: AppColors.mist, thickness: 1.5)),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('o', style: TextStyle(color: AppColors.mutedInk, fontSize: 13)),
+                  child: Text('o', style: TextStyle(color: AppColors.mutedInk, fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
-                Expanded(child: Divider(color: AppColors.mist)),
+                Expanded(child: Divider(color: AppColors.mist, thickness: 1.5)),
               ],
             ),
             const SizedBox(height: 16),
@@ -197,7 +225,7 @@ class _LoginFormCardState extends State<LoginFormCard> {
                 foregroundColor: AppColors.navy,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Crear una cuenta nueva', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text('Crear una cuenta nueva', style: TextStyle(fontWeight: FontWeight.w800)),
             ),
           ],
         ),

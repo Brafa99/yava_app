@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yava_delivery_driver/features/auth/application/auth_controller.dart';
 import 'package:yava_delivery_driver/features/auth/presentation/auth_entry_bg.dart';
 import 'package:yava_delivery_driver/features/auth/presentation/driver_register_page.dart';
+import 'package:yava_delivery_driver/features/customer/customer_ride_flow_page.dart';
+import 'package:yava_delivery_driver/features/driver/driver_ride_flow_page.dart';
 import 'package:yava_delivery_driver/features/transport/customer_offer_page.dart';
-import 'package:yava_delivery_driver/features/transport/customer_quick_request_page.dart';
 import 'package:yava_delivery_driver/features/auth/presentation/customer_onboarding_page.dart';
 import 'package:yava_delivery_driver/features/auth/presentation/driver_onboarding_page.dart';
 import 'package:yava_delivery_driver/features/auth/presentation/login_page.dart';
@@ -12,7 +14,6 @@ import 'package:yava_delivery_driver/features/auth/presentation/role_selection_p
 import 'package:yava_delivery_driver/features/customer/customer_location_page.dart';
 import 'package:yava_delivery_driver/features/customer/customer_new_request_page.dart';
 import 'package:yava_delivery_driver/features/customer/customer_profile_page.dart';
-import 'package:yava_delivery_driver/features/customer/customer_request_page.dart';
 import 'package:yava_delivery_driver/features/customer/customer_trips_page.dart';
 import 'package:yava_delivery_driver/features/customer/home/customer_home_page.dart';
 import 'package:yava_delivery_driver/features/driver/driver_documents_page.dart';
@@ -27,14 +28,43 @@ import 'package:yava_delivery_driver/features/driver/driver_wallet_page.dart';
 import 'package:yava_delivery_driver/features/driver/home/driver_home_page.dart';
 import 'package:yava_delivery_driver/features/onboarding/presentation/onboarding_page.dart';
 import 'package:yava_delivery_driver/features/splash/presentation/splash_page.dart';
+import 'package:yava_delivery_driver/features/transport/models/ride_requests_model.dart';
 import 'package:yava_delivery_driver/features/welcome/welcome_page.dart';
 import 'package:yava_delivery_driver/shared/widgets/placeholder_page.dart';
-
-
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
+    redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
+      
+      final loc = state.matchedLocation;
+      final isAuthFlow = loc == '/login' ||
+          loc == '/register' ||
+          loc == '/splash' ||
+          loc == WelcomePage.routePath ||
+          loc == '/onboarding' ||
+          loc == RoleSelectionPage.routePath ||
+          loc == CustomerOnboardingPage.routePath ||
+          loc == DriverOnboardingPage.routePath ||
+          loc == DriverRegisterPage.routePath ||
+          loc == AuthEntryPage.routePath;
+
+      if (!authState.isAuthenticated) {
+        if (!isAuthFlow) {
+          return '/login';
+        }
+        return null;
+      }
+
+      if (loc == '/login' || loc == '/register' || loc == '/splash') {
+        return authState.user?.role == 'driver'
+            ? DriverHomePage.routePath
+            : CustomerHomePage.routePath;
+      }
+
+      return null;
+    },
     routes: <GoRoute>[
       // ---------------------------------------------------------------------
       // PUBLIC / INITIAL FLOW
@@ -98,6 +128,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // CUSTOMER FLOW
       // ---------------------------------------------------------------------
       GoRoute(
+        path: '/customer/ride-flow',
+        builder: (context, state) => const CustomerRideFlowPage(),
+      ),
+      GoRoute(
         path: CustomerHomePage.routePath,
         name: CustomerHomePage.routeName,
         builder: (context, state) => const CustomerHomePage(),
@@ -116,10 +150,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: CustomerRequestsPage.routePath,
-        builder: (context, state) => const CustomerRequestsPage(),
-      ),
-      GoRoute(
         path: '/customer/offers/:requestId',
         builder: (context, state) {
           final requestId = state.pathParameters['requestId'] ?? '1';
@@ -134,9 +164,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: CustomerTripsPage.routePath,
         builder: (context, state) => const CustomerTripsPage(),
       ),
-      _placeholder(
-        '/customer/tracking',
-        'Trip tracking',
+      GoRoute(
+        path: '/customer/tracking/:requestId',
+        builder: (context, state) {
+          return const DriverTrackingPage(); // Tracking reutilizable
+        },
       ),
       GoRoute(
         path: CustomerProfilePage.routePath,
@@ -158,8 +190,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/driver/requests/:requestId',
         builder: (context, state) {
-          final requestId = state.pathParameters['requestId'] ?? '1';
-          return DriverRequestDetailPage(requestId: requestId);
+          // 1. Extraemos el ID de la URL y lo convertimos a entero
+          final requestIdString = state.pathParameters['requestId'] ?? '1';
+          final rideId = int.parse(requestIdString);
+          
+          // 2. Extraemos el modelo completo que enviaste con "extra: ride"
+          final rideModel = state.extra as RideRequestModel; 
+
+          // 3. Renderizamos nuestra NUEVA pantalla maestra
+          return DriverRideFlowPage(
+            rideId: rideId,
+            initialRide: rideModel,
+          );
         },
       ),
       GoRoute(
@@ -170,7 +212,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: DriverTripsPage.routePath,
         builder: (context, state) => const DriverTripsPage(),
       ),
-    
       GoRoute(
         path: DriverDocumentsPage.routePath,
         builder: (context, state) => const DriverDocumentsPage(),
@@ -187,53 +228,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: DriverProfilePage.routePath,
         builder: (context, state) => const DriverProfilePage(),
       ),
+      GoRoute(
+        path: DriverTrackingPage.routePath,
+        name: 'driver-tracking',
+        builder: (context, state) => const DriverTrackingPage(),
+      ),
 
       // ---------------------------------------------------------------------
       // TRANSPORT & DELIVERY SHORTCUTS
       // ---------------------------------------------------------------------
       GoRoute(
-        path: DriverTrackingPage.routePath,
-        name: 'driver-tracking', // <-- Solución al error de routeName
-        builder: (context, state) => const DriverTrackingPage(),
-      ),
-
-      // ... (demás rutas intermedias) ...
-
-      // TRANSPORT & DELIVERY SHORTCUTS (Corregido sin llaves extrañas)
-      GoRoute(
         path: '/transport/customer-quick-request',
         builder: (context, state) {
           final service = state.uri.queryParameters['category'] ?? 'auto';
-          return CustomerQuickRequestPage(service: service);
+          return CustomerNewRequestPage(initialService: service);
         },
       ),
       GoRoute(
         path: '/delivery/categories',
-        builder: (context, state) => const CustomerQuickRequestPage(service: 'delivery'),
+        builder: (context, state) =>
+            const CustomerNewRequestPage(initialService: 'delivery'),
       ),
       GoRoute(
         path: '/delivery/store-list',
         builder: (context, state) {
-          final category = state.uri.queryParameters['category'] ?? 'restaurantes';
-          return CustomerQuickRequestPage(service: category);
+          final category =
+              state.uri.queryParameters['category'] ?? 'restaurantes';
+          return CustomerNewRequestPage(initialService: category);
         },
       ),
     ],
-
     errorBuilder: (context, state) {
       return PlaceholderPage(
-        title: 'Page not found',
-        description: state.error?.toString() ?? 'This route is not available.',
+        title: 'Página no encontrada',
+        description: state.error?.toString() ?? 'Esta ruta no está disponible.',
       );
     },
   );
 });
-
-GoRoute _placeholder(String path, String title) {
-  return GoRoute(
-    path: path,
-    builder: (context, state) => PlaceholderPage(
-      title: title,
-    ),
-  );
-}

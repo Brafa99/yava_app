@@ -498,10 +498,13 @@ class DriverStep6Terms extends StatelessWidget {
 // =============================================================================
 // PASO 7 DE 7: EN PROCESO DE REVISIÓN / ¡REGISTRO COMPLETADO! (Paso8 y Paso9)
 // =============================================================================
+// =============================================================================
+// PASO 7 DE 7: EN PROCESO DE REVISIÓN (Final del flujo de registro real)
+// =============================================================================
 class DriverStep7ReviewStatus extends StatelessWidget {
   final bool isApprovedPreview;
   final VoidCallback onTogglePreviewMode;
-  final VoidCallback onBackToStart;
+  final VoidCallback onBackToStart; // El padre debe inyectar: () => context.go('/login')
   final VoidCallback onGoToDriverPanel;
 
   const DriverStep7ReviewStatus({
@@ -514,43 +517,42 @@ class DriverStep7ReviewStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Para desarrollo, si fuerzas isApprovedPreview a true, mostrará la vista.
+    // En producción, el flujo termina en _buildInReviewView.
     if (isApprovedPreview) {
       return _buildApprovedView();
     }
     return _buildInReviewView();
   }
 
-  /// Vista 1: Registro en proceso de revisión (Réplica de Paso8.png)
+  /// Vista 1: Registro en proceso de revisión (Réplica exacta de Paso8.png)
   Widget _buildInReviewView() {
     return DriverStepLayout(
-      topBadge: GestureDetector(
-        onTap: onTogglePreviewMode, // Toque en el icono para previsualizar la pantalla "¡Registro completado!" en el demo
-        child: Container(
-          width: 72,
-          height: 72,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFEF3C7),
-            shape: BoxShape.circle,
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Icon(Icons.assignment_outlined, size: 38, color: Color(0xFF0A1628)),
-              Positioned(
-                right: 12,
-                bottom: 12,
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF59E0B),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.access_time_rounded, size: 15, color: Colors.white),
+      topBadge: Container(
+        width: 72,
+        height: 72,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFEF3C7),
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(Icons.assignment_outlined, size: 38, color: Color(0xFF0A1628)),
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF59E0B),
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.access_time_rounded, size: 15, color: Colors.white),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       title: 'Registro en proceso\nde revisión',
@@ -562,9 +564,8 @@ class DriverStep7ReviewStatus extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF9E7),
+            color: const Color(0xFFFEF9E7), // Fondo crema claro
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFFDE68A)),
           ),
           child: Row(
             children: [
@@ -572,7 +573,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFDE68A),
+                  color: Color(0xFFFDE68A), // Amarillo Jurídica
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.balance_rounded, color: Color(0xFFD97706), size: 26),
@@ -592,7 +593,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
 
         // Timeline de 3 etapas
         _timelineRow(
@@ -618,17 +619,18 @@ class DriverStep7ReviewStatus extends StatelessWidget {
               'Te comunicaremos por la aplicación y/o\ncorreo registrado cuando tu cuenta haya sido\naprobada y esté lista para iniciar.',
           badgeText: 'Pendiente',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
 
-        // Botón Rojo: Volver al inicio
+        // Botón Rojo: Volver al inicio (Debe redirigir al Login)
         SizedBox(
           width: double.infinity,
           height: 54,
           child: ElevatedButton.icon(
             onPressed: onBackToStart,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE50914),
+              backgroundColor: const Color(0xFFE50914), // Rojo YAVÁ
               foregroundColor: Colors.white,
+              elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             ),
             icon: const Icon(Icons.arrow_back_rounded, size: 22),
@@ -638,61 +640,31 @@ class DriverStep7ReviewStatus extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Center(
-          child: TextButton(
-            onPressed: onTogglePreviewMode,
-            child: const Text(
-              'Ver vista de Registro Aprobado (Demo) →',
-              style: TextStyle(
-                color: Color(0xFF16A34A),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
+        
+        // El botón de "Ver vista de Registro Aprobado (Demo)" ha sido removido 
+        // de la UI para mantener el flujo real de producción.
       ],
     );
   }
 
-  /// Vista 2: ¡Registro completado! (Réplica de Paso9.png)
+  /// Vista 2: ¡Registro completado! (Se mantiene el código base por si se necesita a futuro)
   Widget _buildApprovedView() {
     final checks = const [
-      (
-        Icons.badge_outlined,
-        'Verificación de identidad',
-        'Tu identidad ha sido verificada correctamente.',
-      ),
-      (
-        Icons.description_outlined,
-        'Revisión de documentos',
-        'Tus documentos cumplen con los requisitos\nde YAVÁ y la normativa vigente.',
-      ),
-      (
-        Icons.balance_rounded,
-        'Evaluación del área de Jurídica',
-        'Tu información ha sido revisada y aprobada\npor el área de Jurídica de YAVÁ.',
-      ),
-      (
-        Icons.directions_car_outlined,
-        'Cuenta activa',
-        'Tu cuenta como Driver está habilitada\ny lista para recibir solicitudes de viaje.',
-      ),
+      (Icons.badge_outlined, 'Verificación de identidad', 'Tu identidad ha sido verificada correctamente.'),
+      (Icons.description_outlined, 'Revisión de documentos', 'Tus documentos cumplen con los requisitos\nde YAVÁ y la normativa vigente.'),
+      (Icons.balance_rounded, 'Evaluación del área de Jurídica', 'Tu información ha sido revisada y aprobada\npor el área de Jurídica de YAVÁ.'),
+      (Icons.directions_car_outlined, 'Cuenta activa', 'Tu cuenta como Driver está habilitada\ny lista para recibir solicitudes de viaje.'),
     ];
 
     return DriverStepLayout(
-      topBadge: GestureDetector(
-        onTap: onTogglePreviewMode,
-        child: Container(
-          width: 72,
-          height: 72,
-          decoration: const BoxDecoration(
-            color: Color(0xFF16A34A),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check_rounded, size: 44, color: Colors.white),
+      topBadge: Container(
+        width: 72,
+        height: 72,
+        decoration: const BoxDecoration(
+          color: Color(0xFF16A34A),
+          shape: BoxShape.circle,
         ),
+        child: const Icon(Icons.check_rounded, size: 44, color: Colors.white),
       ),
       title: '¡Registro completado!',
       underlineColor: const Color(0xFF16A34A),
@@ -709,29 +681,20 @@ class DriverStep7ReviewStatus extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFBBF7D0),
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: Color(0xFFBBF7D0), shape: BoxShape.circle),
                 child: const Icon(Icons.verified_rounded, color: Color(0xFF15803D), size: 26),
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   'Tu información y documentos han CUMPLIDO\ncon las normativas y requisitos de YAVÁ.',
-                  style: TextStyle(
-                    color: Color(0xFF14532D),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    height: 1.3,
-                  ),
+                  style: TextStyle(color: Color(0xFF14532D), fontSize: 12.5, fontWeight: FontWeight.w800, height: 1.3),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-
         ...checks.map((c) {
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
@@ -746,10 +709,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
                 Container(
                   width: 42,
                   height: 42,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFDCFCE7),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: Color(0xFFDCFCE7), shape: BoxShape.circle),
                   child: Icon(c.$1, color: const Color(0xFF0A1628), size: 22),
                 ),
                 const SizedBox(width: 12),
@@ -757,33 +717,16 @@ class DriverStep7ReviewStatus extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        c.$2,
-                        style: const TextStyle(
-                          color: Color(0xFF0A1628),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      Text(c.$2, style: const TextStyle(color: Color(0xFF0A1628), fontSize: 13.5, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 2),
-                      Text(
-                        c.$3,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11,
-                          height: 1.2,
-                        ),
-                      ),
+                      Text(c.$3, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, height: 1.2)),
                     ],
                   ),
                 ),
                 Container(
                   width: 26,
                   height: 26,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF16A34A),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle),
                   child: const Icon(Icons.check_rounded, color: Colors.white, size: 17),
                 ),
               ],
@@ -791,8 +734,6 @@ class DriverStep7ReviewStatus extends StatelessWidget {
           );
         }),
         const SizedBox(height: 12),
-
-        // Botón Rojo: Ir a mi panel de Driver ->
         SizedBox(
           width: double.infinity,
           height: 54,
@@ -808,10 +749,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 SizedBox(width: 24),
-                Text(
-                  'Ir a mi panel de Driver',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                ),
+                Text('Ir a mi panel de Driver', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                 Icon(Icons.arrow_forward_rounded, size: 24),
               ],
             ),
@@ -837,6 +775,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
               Container(
                 width: 20,
                 height: 20,
+                margin: const EdgeInsets.only(top: 2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
@@ -861,6 +800,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
                 Expanded(
                   child: Container(
                     width: 2,
+                    margin: const EdgeInsets.only(top: 4, bottom: 4),
                     color: const Color(0xFFE2E8F0),
                   ),
                 ),
@@ -869,7 +809,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -877,7 +817,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: Color(0xFF0A1628),
-                      fontSize: 14,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -886,7 +826,7 @@ class DriverStep7ReviewStatus extends StatelessWidget {
                     subtitle,
                     style: const TextStyle(
                       color: Color(0xFF64748B),
-                      fontSize: 11.5,
+                      fontSize: 12,
                       height: 1.25,
                     ),
                   ),
@@ -895,15 +835,15 @@ class DriverStep7ReviewStatus extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+              color: isActive ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9), // Amarillo claro / Gris claro
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               badgeText,
               style: TextStyle(
-                color: isActive ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                color: isActive ? const Color(0xFFD97706) : const Color(0xFF94A3B8), // Naranja / Gris oscuro
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),

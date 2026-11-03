@@ -9,7 +9,9 @@ import '../../../core/services/storage_service.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/entities/app_user.dart';
 
-// Providers de Infraestructura y Red
+// -----------------------------------------------------------------------------
+// PROVIDERS DE INFRAESTRUCTURA Y RED
+// -----------------------------------------------------------------------------
 final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
@@ -42,7 +44,9 @@ final authRepositoryProvider = Provider<AuthRepositoryEntity>((ref) {
   );
 });
 
-// Estado
+// -----------------------------------------------------------------------------
+// ESTADO DE AUTENTICACIÓN
+// -----------------------------------------------------------------------------
 class AuthState {
   const AuthState({
     this.user,
@@ -53,6 +57,8 @@ class AuthState {
   final AppUser? user;
   final bool isLoading;
   final String? errorMessage;
+
+  bool get isAuthenticated => user != null;
 
   AuthState copyWith({
     AppUser? user,
@@ -69,7 +75,9 @@ class AuthState {
   }
 }
 
-// Controlador
+// -----------------------------------------------------------------------------
+// CONTROLADOR CON LOGS PARA FASE BETA
+// -----------------------------------------------------------------------------
 class AuthController extends StateNotifier<AuthState> {
   AuthController({required AuthRepositoryEntity repository})
       : _repository = repository,
@@ -80,14 +88,29 @@ class AuthController extends StateNotifier<AuthState> {
   Future<AppUser?> signIn({
     required String email,
     required String password,
+    String? deviceToken,
+    String? platform,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    print('\n\n🟢 === INICIO DE SESIÓN YAVÁ === 🟢');
+    print('Usuario: $email');
 
     try {
-      final user = await _repository.login(email, password);
+      final user = await _repository.login(
+        email: email,
+        password: password,
+        deviceToken: deviceToken,
+        platform: platform,
+      );
+      
+      print('✅ LOGIN EXITOSO: ID ${user.id} | Rol: ${user.role} | Nombre: ${user.name}');
+      print('🟢 =================================== 🟢\n\n');
+      
       state = AuthState(user: user, isLoading: false);
       return user;
     } catch (error) {
+      print('❌ ERROR EN LOGIN: $error');
+      print('🟢 =================================== 🟢\n\n');
       state = AuthState(isLoading: false, errorMessage: _mapHttpError(error));
       return null;
     }
@@ -95,14 +118,15 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<AppUser?> registerClient({
     required String name,
-    String? lastName,
+    required String lastName,
     required String email,
     required String password,
     required String phone,
-    String? ci,
-    String? city,
+    Map<String, dynamic>? termAndRequirement,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    print('\n\n🔵 === REGISTRO DE CLIENTE YAVÁ === 🔵');
+    print('Registrando: $name $lastName | $email');
 
     try {
       final user = await _repository.registerClient(
@@ -111,12 +135,17 @@ class AuthController extends StateNotifier<AuthState> {
         email: email,
         password: password,
         phone: phone,
-        ci: ci,
-        city: city,
+        termAndRequirement: termAndRequirement,
       );
+      
+      print('✅ REGISTRO CLIENTE EXITOSO: ID ${user.id}');
+      print('🔵 ==================================== 🔵\n\n');
+      
       state = AuthState(user: user, isLoading: false);
       return user;
     } catch (error) {
+      print('❌ ERROR EN REGISTRO CLIENTE: $error');
+      print('🔵 ==================================== 🔵\n\n');
       state = AuthState(isLoading: false, errorMessage: _mapHttpError(error));
       return null;
     }
@@ -124,14 +153,22 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<AppUser?> registerDriver({
     required String name,
-    String? lastName,
+    required String lastName,
     required String email,
     required String password,
     required String phone,
-    required String ci,
+    String? ci,
+    String? birthDate,
     String? city,
+    String? deviceToken,
+    String? platform,
+    double? lastLatitude,
+    double? lastLongitude,
+    Map<String, dynamic>? termAndRequirement,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    print('\n\n🟠 === REGISTRO DE CONDUCTOR YAVÁ === 🟠');
+    print('Registrando Conductor: $name $lastName | $email | CI: $ci');
 
     try {
       final user = await _repository.registerDriver(
@@ -141,11 +178,58 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
         phone: phone,
         ci: ci,
+        birthDate: birthDate,
         city: city,
+        deviceToken: deviceToken,
+        platform: platform,
+        lastLatitude: lastLatitude,
+        lastLongitude: lastLongitude,
+        termAndRequirement: termAndRequirement,
       );
+      
+      print('✅ REGISTRO CONDUCTOR EXITOSO: ID ${user.id}');
+      print('🟠 ====================================== 🟠\n\n');
+      
       state = AuthState(user: user, isLoading: false);
       return user;
     } catch (error) {
+      print('❌ ERROR EN REGISTRO CONDUCTOR: $error');
+      print('🟠 ====================================== 🟠\n\n');
+      state = AuthState(isLoading: false, errorMessage: _mapHttpError(error));
+      return null;
+    }
+  }
+
+  Future<AppUser?> signInWithSocial({
+    required String name,
+    String? lastName,
+    required String email,
+    String? photo,
+    String? deviceToken,
+    String? platform,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    print('\n\n🟣 === LOGIN SOCIAL YAVÁ === 🟣');
+    print('Usuario: $email');
+
+    try {
+      final user = await _repository.loginSocial(
+        name: name,
+        lastName: lastName,
+        email: email,
+        photo: photo,
+        deviceToken: deviceToken,
+        platform: platform,
+      );
+      
+      print('✅ LOGIN SOCIAL EXITOSO: ID ${user.id} | Rol: ${user.role}');
+      print('🟣 ================================= 🟣\n\n');
+      
+      state = AuthState(user: user, isLoading: false);
+      return user;
+    } catch (error) {
+      print('❌ ERROR EN LOGIN SOCIAL: $error');
+      print('🟣 ================================= 🟣\n\n');
       state = AuthState(isLoading: false, errorMessage: _mapHttpError(error));
       return null;
     }
@@ -153,20 +237,39 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<AppUser?> loadCurrentUser() async {
     state = state.copyWith(isLoading: true, clearError: true);
+    print('\n\n🟡 === CARGANDO SESIÓN YAVÁ === 🟡');
 
     try {
       final user = await _repository.getCurrentUser();
+      
+      if (user != null) {
+        print('✅ SESIÓN ACTIVA RECUPERADA: ID ${user.id} | Rol: ${user.role} | Nombre: ${user.name}');
+      } else {
+        print('⚠️ SESIÓN RECUPERADA PERO EL USUARIO ESTÁ VACÍO.');
+      }
+      print('🟡 ================================= 🟡\n\n');
+      
       state = AuthState(user: user, isLoading: false);
       return user;
-    } catch (_) {
+    } catch (error) {
+      print('⚠️ NO HAY SESIÓN ACTIVA O EL TOKEN EXPIRÓ: $error');
+      print('🟡 ================================= 🟡\n\n');
       state = const AuthState();
       return null;
     }
   }
 
   Future<void> signOut() async {
-    await _repository.logout();
-    state = const AuthState();
+    print('\n\n🔴 === CERRANDO SESIÓN YAVÁ === 🔴');
+    try {
+      await _repository.logout();
+      print('✅ SESIÓN CERRADA EXITOSAMENTE.');
+    } catch (error) {
+      print('❌ ERROR AL CERRAR SESIÓN: $error');
+    } finally {
+      print('🔴 ================================= 🔴\n\n');
+      state = const AuthState();
+    }
   }
 
   String _mapHttpError(Object error) {
@@ -175,10 +278,12 @@ class AuthController extends StateNotifier<AuthState> {
     if (rawMessage.contains('Error de validación')) {
       return rawMessage.replaceAll('{', '').replaceAll('}', '');
     }
-    if (rawMessage.contains('401') || rawMessage.toLowerCase().contains('unauthorized')) {
+    if (rawMessage.contains('401') ||
+        rawMessage.toLowerCase().contains('unauthorized')) {
       return 'Credenciales incorrectas o sesión expirada.';
     }
-    if (rawMessage.contains('SocketException') || rawMessage.contains('Failed host lookup')) {
+    if (rawMessage.contains('SocketException') ||
+        rawMessage.contains('Failed host lookup')) {
       return 'No hay conexión con el servidor.';
     }
 

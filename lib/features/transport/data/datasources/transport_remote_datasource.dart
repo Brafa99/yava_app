@@ -113,11 +113,13 @@ class TransportRemoteDataSourceImpl implements TransportRemoteDataSource {
   @override
   Future<void> sendDriverOffer(int rideId, double offeredAmount) async {
     // Según api-docs.json el campo requerido es "offered_amount"
-    await apiClient.post(
-      ApiEndpoints.rideOffer(rideId),
-      body: {'offered_amount': offeredAmount},
-      requiresAuth: true,
-    );
+    
+    // await apiClient.post(
+    //   ApiEndpoints.rideOffer(rideId),
+    //   body: {'offered_amount': offeredAmount},
+    //   requiresAuth: true,
+    // );
+
   }
 
   @override
@@ -130,11 +132,13 @@ class TransportRemoteDataSourceImpl implements TransportRemoteDataSource {
 
   @override
   Future<void> updateRideStatus(int rideId, String status) async {
-    await apiClient.patch(
-      ApiEndpoints.rideStatus(rideId),
-      body: {'status': status},
-      requiresAuth: true,
-    );
+    
+    // await apiClient.patch(
+    //   ApiEndpoints.rideStatus(rideId),
+    //   body: {'status': status},
+    //   requiresAuth: true,
+    // );
+    
   }
 
   @override

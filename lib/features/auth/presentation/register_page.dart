@@ -52,7 +52,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   bool get _isDriver => widget.role == 'driver';
 
   /// Separa "Juan Pérez Quispe" en name ("Juan") y last_name ("Pérez Quispe")
-  /// para cumplir con los campos requeridos por Laravel en api-docs.json
+  /// para cumplir con los campos requeridos por Laravel en docs.json
   (String, String) _splitFullName(String rawName) {
     final parts = rawName.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return ('Usuario', 'YAVÁ');
@@ -60,6 +60,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final firstName = parts.first;
     final lastName = parts.sublist(1).join(' ');
     return (firstName, lastName);
+  }
+
+  Map<String, dynamic> _buildTermsPayload() {
+    final now = DateTime.now().toUtc().toIso8601String();
+    return {
+      'terms_and_conditions': {
+        'accepted': true,
+        'version': '1.0',
+        'accepted_at': now,
+      },
+      'privacy_policy': {
+        'accepted': true,
+        'version': '1.0',
+        'accepted_at': now,
+      },
+    };
   }
 
   Future<void> _submitStep1() async {
@@ -81,7 +97,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     final (firstName, lastName) = _splitFullName(_fullNameController.text);
     final phone = _phoneController.text.trim();
-    // Si el usuario dejó el correo vacío, generamos uno válido con su celular para Laravel
     final rawEmail = _emailController.text.trim();
     final email = rawEmail.isNotEmpty
         ? rawEmail
@@ -89,6 +104,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final password = _passwordController.text;
 
     final controller = ref.read(authControllerProvider.notifier);
+    final terms = _buildTermsPayload();
 
     final user = _isDriver
         ? await controller.registerDriver(
@@ -99,6 +115,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             phone: phone,
             ci: phone,
             city: _selectedCity,
+            termAndRequirement: terms,
           )
         : await controller.registerClient(
             name: firstName,
@@ -106,7 +123,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             email: email,
             password: password,
             phone: phone,
-            city: _selectedCity,
+            termAndRequirement: terms,
           );
 
     if (!mounted) return;
@@ -125,11 +142,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       return;
     }
 
-    await ref.read(onboardingServiceProvider).markCompleted();
+    try {
+      await ref.read(onboardingServiceProvider).markCompleted();
+    } catch (_) {}
 
     if (!mounted) return;
 
-    // Pasamos al Paso 2 ("¡Cuenta creada con éxito!")
     setState(() {
       _currentStep = 2;
     });
@@ -171,7 +189,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         body: SizedBox.expand(
           child: Stack(
             children: [
-              // 1. Cabecera oficial (Ya incluye el logo YAVÁ oscuro, el auto a la derecha y el fundido blanco inferior)
               Positioned(
                 top: 0,
                 left: 0,
@@ -192,7 +209,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ),
               ),
 
-              // 2. Degradado mínimo solo en el borde inferior de la imagen (330px -> 365px) para unir con el fondo blanco
               Positioned(
                 top: 310,
                 left: 0,
@@ -212,25 +228,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ),
               ),
 
-              // 3. Contenido Scrollable
               SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(22, topPadding + 6, 22, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Barra Superior: Flecha atrás • Barra de Progreso Roja • Paso X de 2
                     _buildTopStepBar(context),
-
-                    // Espacio calibrado para quedar justo debajo del logo YAVÁ que ya está en la imagen
                     const SizedBox(height: 122),
-
-                    // Subtítulo del rol (PASAJERO / CONDUCTOR) debajo del logo de la imagen
                     _buildBrandLogo(),
-
                     const SizedBox(height: 10),
-
-                    // Transición entre Paso 1 (Formulario) y Paso 2 (Éxito)
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 350),
                       child: _currentStep == 1
@@ -247,13 +254,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  // --- BARRA SUPERIOR CON PROGRESO DE PASOS ---
   Widget _buildTopStepBar(BuildContext context) {
     final isStep2 = _currentStep == 2;
 
     return Row(
       children: [
-        // Botón volver
         IconButton(
           onPressed: () {
             if (_currentStep == 2) {
@@ -271,17 +276,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
           ),
         ),
-
         const Spacer(),
-
-        // Indicador gráfico de 3 nodos (Rojo hasta la mitad en Paso 1, completo en Paso 2)
         SizedBox(
           width: 175,
           height: 24,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Línea de fondo blanca/gris
               Container(
                 height: 4,
                 margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -290,7 +291,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              // Línea activa roja
               Align(
                 alignment: Alignment.centerLeft,
                 child: FractionallySizedBox(
@@ -305,7 +305,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   ),
                 ),
               ),
-              // Los 3 círculos
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -317,10 +316,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             ],
           ),
         ),
-
         const Spacer(),
-
-        // Texto: Paso 1 de 2 / Paso 2 de 2
         Text(
           'Paso $_currentStep de 2',
           style: const TextStyle(
@@ -352,7 +348,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  // --- LOGO YAVÁ DIRECTO DESDE ASSETS ---
   Widget _buildBrandLogo() {
     return Align(
       alignment: Alignment.centerLeft,
@@ -377,9 +372,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  // ===========================================================================
-  // PASO 1 DE 2: FORMULARIO "CREAR TU CUENTA"
-  // ===========================================================================
   Widget _buildStep1Form(bool isLoading) {
     return Form(
       key: _formKey,
@@ -411,7 +403,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
           const SizedBox(height: 20),
 
-          // 1. Nombre completo
           _RegisterCardInput(
             icon: Icons.person_outline_rounded,
             label: 'Nombre completo',
@@ -426,7 +417,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
           const SizedBox(height: 12),
 
-          // 2. Número de celular
           _RegisterCardInput(
             icon: Icons.smartphone_rounded,
             label: 'Número de celular',
@@ -442,7 +432,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
           const SizedBox(height: 12),
 
-          // 3. Correo electrónico
           _RegisterCardInput(
             icon: Icons.mail_outline_rounded,
             label: 'Correo electrónico (opcional)',
@@ -458,7 +447,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
           const SizedBox(height: 12),
 
-          // 4. Contraseña
           _RegisterCardInput(
             icon: Icons.lock_outline_rounded,
             label: 'Contraseña',
@@ -484,11 +472,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
           const SizedBox(height: 12),
 
-          // 5. Selector de Ciudad
-          _buildCityDropdownCard(),
-          const SizedBox(height: 16),
+          if (_isDriver) ...[
+            _buildCityDropdownCard(),
+            const SizedBox(height: 12),
+          ],
 
-          // Checkbox de Términos y Condiciones
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -543,7 +531,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
           const SizedBox(height: 22),
 
-          // Botón Rojo: Siguiente ->
           SizedBox(
             width: double.infinity,
             height: 56,
@@ -672,9 +659,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  // ===========================================================================
-  // PASO 2 DE 2: "¡CUENTA CREADA CON ÉXITO!"
-  // ===========================================================================
   Widget _buildStep2Success() {
     return Column(
       key: const ValueKey('register_step_2'),
@@ -702,7 +686,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ),
         const SizedBox(height: 18),
 
-        // Avatar Central + Botón de Cámara ("Agrega tu foto")
         Center(
           child: Column(
             children: [
@@ -737,19 +720,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           ),
                         ),
                       ),
-                      
-                      // child: ClipOval(
-                      //   child: Image.asset(
-                      //     'assets/images/banner_conductor_promo.png',
-                      //     fit: BoxFit.cover,
-                      //     errorBuilder: (_, __, ___) => const Icon(
-                      //       Icons.person_rounded,
-                      //       size: 56,
-                      //       color: Color(0xFF64748B),
-                      //     ),
-                      //   ),
-                      // ),
-
                     ),
                     Positioned(
                       right: 0,
@@ -796,7 +766,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ),
         const SizedBox(height: 18),
 
-        // 2 Tarjetas de Estado Verificado (Cuenta verificada • Correo registrado)
         Row(
           children: [
             Expanded(
@@ -818,7 +787,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ),
         const SizedBox(height: 18),
 
-        // Opciones adicionales (recomendado)
         const Text(
           'Opciones adicionales (recomendado)',
           style: TextStyle(
@@ -851,7 +819,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ),
         const SizedBox(height: 22),
 
-        // Botón Rojo: Comenzar a usar YAVÁ ->
         SizedBox(
           width: double.infinity,
           height: 56,
@@ -888,7 +855,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 }
 
-// --- TARJETA DE INPUT CON ICONO Y DIVISOR VERTICAL (PASO 1) ---
 class _RegisterCardInput extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1016,7 +982,6 @@ class _RegisterCardInput extends StatelessWidget {
   }
 }
 
-// --- TARJETA DE INSIGNIA VERIFICADA (PASO 2) ---
 class _VerifiedBadgeCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -1094,7 +1059,6 @@ class _VerifiedBadgeCard extends StatelessWidget {
   }
 }
 
-// --- ITEM DE OPCIÓN ADICIONAL (PASO 2) ---
 class _OptionalActionTile extends StatelessWidget {
   final IconData icon;
   final String title;
