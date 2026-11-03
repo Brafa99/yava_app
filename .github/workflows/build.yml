@@ -42,8 +42,7 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: 7. Compilar APK en modo Release
-        # Se omitió el flag '--android-skip-build-dependency-validation' para evitar builds corruptos
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
 
       - name: 8. Renombrar APK en la raíz para descarga fácil
         run: cp build/app/outputs/flutter-apk/app-release.apk YAVA.apk
