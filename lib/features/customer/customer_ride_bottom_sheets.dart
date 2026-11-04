@@ -51,25 +51,21 @@ class CustomerSelectingDestinationSheet extends StatelessWidget {
               separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black12),
               itemBuilder: (context, index) {
                 final dest = destinos[index];
+                
+                // Forzamos los tipos aquí para que Dart deje de quejarse
+                final String name = dest['name'] as String;
+                final double price = (dest['price'] as num).toDouble();
+                final double lat = (dest['lat'] as num).toDouble();
+                final double lng = (dest['lng'] as num).toDouble();
+
                 return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
-                    child: const Icon(Icons.location_on, color: Color(0xFFE50914)),
-                  ),
-                  title: Text(dest['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  subtitle: Text('Tarifa base: Bs. ${dest['price'].toStringAsFixed(2)}', style: const TextStyle(color: Colors.black54, fontSize: 13)),
-                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.black26),
+                  leading: const Icon(Icons.location_on, color: Color(0xFF0075FF)),
+                  title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  subtitle: Text('Tarifa base: Bs. ${price.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black54, fontSize: 13)),
                   onTap: () {
-                    // 1. Guardamos el Origen (Surtidor ficticio)
-                    controller.setOrigin(originLat, originLng, 'Surtidor (Origen)');
-                    
-                    // 2. Guardamos el precio temporal en el controlador
-                    controller.updateOfferedFare(dest['price']);
-                    
-                    // 3. Establecemos el Destino (Avanza automáticamente al Mockup 2 y dibuja la línea)
-                    controller.setDestination(dest['lat'], dest['lng'], dest['name']);
+                    // Ahora pasamos las variables limpias y tipadas
+                    controller.updateOfferedFare(price);
+                    controller.setDestination(lat, lng, name);
                   },
                 );
               },
