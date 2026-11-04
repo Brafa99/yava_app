@@ -33,8 +33,7 @@ class _CustomerRideFlowPageState extends ConsumerState<CustomerRideFlowPage> {
     // 1. Mostrar pantalla de Resumen si el viaje terminó (Mockup 8)
     if (flowState.rideState == CustomerRideState.completed) {
       return CustomerCompletedSummaryScreen(
-        ride: flowState.currentRide!,
-        controller: ref.read(customerRideFlowProvider.notifier),
+        ride: flowState.currentRide!, 
       );
     }
 
