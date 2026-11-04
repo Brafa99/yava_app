@@ -22,7 +22,7 @@ class CustomerSelectingDestinationSheet extends StatelessWidget {
     final double originLng = -66.1568;
     
     // Lista de los 8 destinos de tu imagen con coordenadas esparcidas por Cochabamba
-    final List> destinos = [
+    final destinos = [
       {'name': 'Barrio San Jorge', 'price': 5.50, 'lat': -17.3980, 'lng': -66.1450},
       {'name': 'Barrio Belén', 'price': 5.50, 'lat': -17.3750, 'lng': -66.1620},
       {'name': 'Comunidad Guayaba', 'price': 6.00, 'lat': -17.4100, 'lng': -66.1300},
