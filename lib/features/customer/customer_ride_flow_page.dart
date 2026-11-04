@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:yava_delivery_driver/features/customer/application/customer_ride_flow_controller.dart';
 import 'package:yava_delivery_driver/features/customer/customer_ride_bottom_sheets.dart';
 import 'widgets/customer_live_map.dart';
+import 'package:yava_delivery_driver/features/customer/widgets/customer_completed_summary_screen.dart';
 
 class CustomerRideFlowPage extends ConsumerStatefulWidget {
   const CustomerRideFlowPage({super.key});
